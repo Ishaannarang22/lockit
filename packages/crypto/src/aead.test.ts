@@ -28,7 +28,7 @@ describe("aead tamper detection", () => {
       nonce: sealed.nonce,
       ciphertext: new Uint8Array(sealed.ciphertext),
     };
-    tampered.ciphertext[0] ^= 0x01;
+    tampered.ciphertext[0] = (tampered.ciphertext[0] ?? 0) ^ 0x01;
     await expect(aeadOpen(tampered, key)).rejects.toThrow();
   });
 
