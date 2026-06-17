@@ -19,3 +19,23 @@ describe("aead round-trip", () => {
     await expect(aeadOpen(sealed, key, new TextEncoder().encode("ctx-B"))).rejects.toThrow();
   });
 });
+
+describe("aead tamper detection", () => {
+  it("rejects a flipped ciphertext byte", async () => {
+    const key = await randomBytes(KEY_BYTES);
+    const sealed = await aeadSeal(new TextEncoder().encode("data"), key);
+    const tampered = {
+      nonce: sealed.nonce,
+      ciphertext: new Uint8Array(sealed.ciphertext),
+    };
+    tampered.ciphertext[0] ^= 0x01;
+    await expect(aeadOpen(tampered, key)).rejects.toThrow();
+  });
+
+  it("rejects a wrong key", async () => {
+    const key = await randomBytes(KEY_BYTES);
+    const wrong = await randomBytes(KEY_BYTES);
+    const sealed = await aeadSeal(new TextEncoder().encode("data"), key);
+    await expect(aeadOpen(sealed, wrong)).rejects.toThrow();
+  });
+});
