@@ -19,6 +19,7 @@ interface WireBlob {
   ciphertext: string;
 }
 
+/** Serialize a sealed blob to the on-disk JSON envelope (base64 byte fields). */
 export function encodeBlob(blob: SealedBlob): string {
   const wire: WireBlob = {
     v: blob.v,
@@ -29,6 +30,7 @@ export function encodeBlob(blob: SealedBlob): string {
   return JSON.stringify(wire);
 }
 
+/** Parse an on-disk envelope; throws on malformed JSON, an unknown version, or an unsupported kdf algo. */
 export function decodeBlob(text: string): SealedBlob {
   const wire = JSON.parse(text) as WireBlob;
   if (wire.v !== BLOB_VERSION) {

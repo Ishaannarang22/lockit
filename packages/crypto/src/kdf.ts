@@ -38,6 +38,7 @@ function assertSaneKdfParams(p: KdfParams): void {
   }
 }
 
+/** Derive a 32-byte key from a passphrase via Argon2id. Rejects a salt < 8 bytes or out-of-range params. */
 export async function deriveKey(
   passphrase: string,
   salt: Uint8Array,

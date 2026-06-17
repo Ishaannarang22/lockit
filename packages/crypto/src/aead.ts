@@ -14,10 +14,16 @@ export interface SealedBytes {
   ciphertext: Uint8Array;
 }
 
+// randomBytes/aeadSeal/aeadOpen are async only to keep this module's surface
+// uniformly Promise-based (and to allow a future native/async sodium backend);
+// the sumo backend resolves synchronously once `await _sodium.ready` completes.
+
+/** Cryptographically-secure random bytes from libsodium's CSPRNG. */
 export async function randomBytes(n: number): Promise<Uint8Array> {
   return sodium.randombytes_buf(n);
 }
 
+/** Seal `plaintext` under a 32-byte `key` with a fresh random nonce; `aad` is authenticated, not encrypted. */
 export async function aeadSeal(
   plaintext: Uint8Array,
   key: Uint8Array,
@@ -35,6 +41,7 @@ export async function aeadSeal(
   return { nonce, ciphertext };
 }
 
+/** Open a sealed value; rejects if the key is wrong, the `aad` differs, or the ciphertext was tampered. */
 export async function aeadOpen(
   sealed: SealedBytes,
   key: Uint8Array,

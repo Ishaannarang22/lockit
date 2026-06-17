@@ -411,6 +411,26 @@ These are documented openly, not hidden.
 | Envelope reference | [`age-encryption`](https://www.npmjs.com/package/age-encryption) |
 | Key Transparency / Merkle | [`@transparency-dev/merkle`](https://www.npmjs.com/package/@transparency-dev/merkle) |
 
+### 12.1 At-rest implementation notes (P0)
+
+- **Effective libsodium core is lockfile-pinned.** `libsodium-wrappers-sumo` is
+  pinned to exactly `0.7.15` — its `0.7.16` build ships a broken relative import
+  of the wasm module and fails to load under Node ESM/CJS/vitest. The wrapper
+  resolves its actual wasm primitive (`libsodium-sumo`) through its own semver
+  range, so the *primitive* version is fixed only by the committed
+  `pnpm-lock.yaml` (currently `libsodium-sumo 0.7.16`). Treat any lockfile change
+  to `libsodium-sumo` as a security-reviewable crypto-core change.
+- **Default Argon2id params are interactive-tier.** `DEFAULT_KDF_PARAMS` is
+  `t=3, m=64 MiB, p=1` — it meets the OWASP Argon2id minimum but is tuned
+  conservatively for P0; production tuning plus a benchmark is deferred to a later
+  hardening pass. Params are persisted per sealed blob, so raising the default
+  later upgrades only newly-sealed vaults — existing vaults keep their original
+  params until re-sealed.
+- **Untrusted blob headers are bounds-checked.** `deriveKey` rejects out-of-range
+  `iterations`/`memorySize`/`parallelism` before invoking Argon2id, so a tampered
+  header cannot force unbounded CPU/RAM (or an uncontrolled allocation error) when
+  opening a blob.
+
 ---
 
 ## 13. Testing expectations
