@@ -1,5 +1,3 @@
-export const CRYPTO_PACKAGE = "@kv/crypto";
-
 export { aeadSeal, aeadOpen, randomBytes, KEY_BYTES, NONCE_BYTES } from "./aead.js";
 export type { SealedBytes } from "./aead.js";
 export { deriveKey, DEFAULT_KDF_PARAMS } from "./kdf.js";
