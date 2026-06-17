@@ -33,5 +33,31 @@ describe("deriveKey (Argon2id)", () => {
   });
 });
 
+describe("deriveKey param bounds (untrusted blob headers)", () => {
+  it("rejects iterations above the ceiling", async () => {
+    await expect(
+      deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, iterations: 1000 }),
+    ).rejects.toThrow(/iterations out of range/);
+  });
+
+  it("rejects an absurd memorySize before allocating (no RangeError)", async () => {
+    await expect(
+      deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, memorySize: 4194304 }),
+    ).rejects.toThrow(/memorySize out of range/);
+  });
+
+  it("rejects non-integer, zero, and negative params", async () => {
+    await expect(
+      deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, iterations: -1 }),
+    ).rejects.toThrow(/iterations out of range/);
+    await expect(
+      deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, parallelism: 0 }),
+    ).rejects.toThrow(/parallelism out of range/);
+    await expect(
+      deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, memorySize: 1.5 }),
+    ).rejects.toThrow(/memorySize out of range/);
+  });
+});
+
 // Type-shape assertion so later tasks rely on a stable params contract.
 const _params: KdfParams = { iterations: 3, memorySize: 65536, parallelism: 1 };
