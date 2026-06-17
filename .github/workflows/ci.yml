@@ -7,8 +7,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # No version input: action-setup reads the pinned `packageManager`
+      # field from package.json (pnpm@10.28.1). Specifying both throws
+      # ERR_PNPM_BAD_PM_VERSION when they differ.
       - uses: pnpm/action-setup@v4
-        with: { version: 10 }
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: pnpm }
       - run: pnpm install --frozen-lockfile
