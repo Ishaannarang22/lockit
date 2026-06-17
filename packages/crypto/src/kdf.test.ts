@@ -47,15 +47,15 @@ describe("deriveKey param bounds (untrusted blob headers)", () => {
   });
 
   it("rejects non-integer, zero, and negative params", async () => {
-    await expect(
-      deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, iterations: -1 }),
-    ).rejects.toThrow(/iterations out of range/);
-    await expect(
-      deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, parallelism: 0 }),
-    ).rejects.toThrow(/parallelism out of range/);
-    await expect(
-      deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, memorySize: 1.5 }),
-    ).rejects.toThrow(/memorySize out of range/);
+    await expect(deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, iterations: -1 })).rejects.toThrow(
+      /iterations out of range/,
+    );
+    await expect(deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, parallelism: 0 })).rejects.toThrow(
+      /parallelism out of range/,
+    );
+    await expect(deriveKey("pw", salt, { ...DEFAULT_KDF_PARAMS, memorySize: 1.5 })).rejects.toThrow(
+      /memorySize out of range/,
+    );
   });
 });
 

@@ -30,7 +30,11 @@ function assertSaneKdfParams(p: KdfParams): void {
   if (!isPositiveInt(p.iterations) || p.iterations > MAX_ITERATIONS) {
     throw new Error(`kdf iterations out of range: ${p.iterations}`);
   }
-  if (!isPositiveInt(p.memorySize) || p.memorySize < MIN_MEMORY_KIB || p.memorySize > MAX_MEMORY_KIB) {
+  if (
+    !isPositiveInt(p.memorySize) ||
+    p.memorySize < MIN_MEMORY_KIB ||
+    p.memorySize > MAX_MEMORY_KIB
+  ) {
     throw new Error(`kdf memorySize out of range: ${p.memorySize}`);
   }
   if (!isPositiveInt(p.parallelism) || p.parallelism > MAX_PARALLELISM) {

@@ -53,15 +53,15 @@ docs in this directory.
 
 ## 2. Primitives & rationale
 
-| Primitive | Algorithm | Why |
-|---|---|---|
-| Key agreement / key wrap | **X25519** (ECDH) | Fast, misuse-resistant curve for wrapping keys to a recipient's public key. |
-| Signatures & device sigchain | **Ed25519** | Deterministic, fast signatures for sender authentication and the append-only device chain. |
-| Payload sealing (AEAD) | **XChaCha20-Poly1305** | Extended 192-bit nonce permits random nonces without exhaustion risk; authenticated. |
+| Primitive                         | Algorithm                                                                                 | Why                                                                                                                                   |
+| --------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Key agreement / key wrap          | **X25519** (ECDH)                                                                         | Fast, misuse-resistant curve for wrapping keys to a recipient's public key.                                                           |
+| Signatures & device sigchain      | **Ed25519**                                                                               | Deterministic, fast signatures for sender authentication and the append-only device chain.                                            |
+| Payload sealing (AEAD)            | **XChaCha20-Poly1305**                                                                    | Extended 192-bit nonce permits random nonces without exhaustion risk; authenticated.                                                  |
 | Asymmetric wrapping of seeds/DEKs | **HPKE — RFC 9180**, `DHKEM(X25519)` + `HKDF-SHA256` + `ChaCha20-Poly1305`, **Auth mode** | Standardized hybrid public-key encryption. Auth mode binds the wrap to the sender's identity key, preventing recipient-set injection. |
-| Key derivation / expansion | **HKDF-SHA256** | Expands a single seed into multiple typed keys (the "seed-triple trick", [§5](#5-the-seed-triple-trick)). |
-| Passphrase hardening | **Argon2id** | Memory-hard KDF; resists GPU/ASIC brute force of the passphrase. |
-| Password-authenticated login | **OPAQUE** | The server authenticates a client without ever seeing a password or password-equivalent. |
+| Key derivation / expansion        | **HKDF-SHA256**                                                                           | Expands a single seed into multiple typed keys (the "seed-triple trick", [§5](#5-the-seed-triple-trick)).                             |
+| Passphrase hardening              | **Argon2id**                                                                              | Memory-hard KDF; resists GPU/ASIC brute force of the passphrase.                                                                      |
+| Password-authenticated login      | **OPAQUE**                                                                                | The server authenticates a client without ever seeing a password or password-equivalent.                                              |
 
 All asymmetric public-key operations reduce to X25519/Ed25519 over Curve25519,
 and all symmetric sealing uses a ChaCha20-Poly1305 family member, keeping the
@@ -130,8 +130,8 @@ the dashed line is **client-only** and never reaches the server in usable form.
 
 - **SecretKey (optional, 128-bit)** — a locally generated second factor backed
   by a passkey or hardware token. It is **not** derived from the passphrase. Its
-  purpose: make a *stolen server blob non-brute-forceable from a weak
-  passphrase*. Without the SecretKey, an attacker who exfiltrates server
+  purpose: make a _stolen server blob non-brute-forceable from a weak
+  passphrase_. Without the SecretKey, an attacker who exfiltrates server
   ciphertext still cannot grind a weak passphrase offline, because AK depends on
   a high-entropy factor the server never sees.
 
@@ -170,15 +170,15 @@ the dashed line is **client-only** and never reaches the server in usable form.
 
 ## 4. Where keys live
 
-| Key | Where it exists in usable form |
-|---|---|
-| passphrase, MasterKEK, AK | derived in client memory only |
-| SecretKey | passkey/hardware token, client-side only |
-| DK private half | the single device that generated it; never transmitted |
-| UIS / UIK private | client memory; wrapped at rest under AK and to devices |
-| PVS / PVK | client memory; wrapped under AK; never shared out |
-| Org/Team Seed / TeamKey | client memory; HPKE-sealed to each member's UIK |
-| per-item DEK | client memory during seal/open only |
+| Key                       | Where it exists in usable form                         |
+| ------------------------- | ------------------------------------------------------ |
+| passphrase, MasterKEK, AK | derived in client memory only                          |
+| SecretKey                 | passkey/hardware token, client-side only               |
+| DK private half           | the single device that generated it; never transmitted |
+| UIS / UIK private         | client memory; wrapped at rest under AK and to devices |
+| PVS / PVK                 | client memory; wrapped under AK; never shared out      |
+| Org/Team Seed / TeamKey   | client memory; HPKE-sealed to each member's UIK        |
+| per-item DEK              | client memory during seal/open only                    |
 
 ---
 
@@ -205,7 +205,7 @@ Benefits:
 UIS, PVS, and the Org/Team Seed all use this expansion.
 
 > **Generic wrap-to-public-key primitive.** [`packages/crypto`](../packages/crypto)
-> exposes a generic *wrap-a-seed-to-any-public-key* operation (HPKE seal of a
+> exposes a generic _wrap-a-seed-to-any-public-key_ operation (HPKE seal of a
 > seed to a recipient public key). The team-sharing boundary is one consumer of
 > it. A future feature could build other capabilities on the same primitive —
 > but **no such feature exists in this version**, and there is no account
@@ -269,7 +269,7 @@ append-only encrypted relay.
 
 There is **no operator master key**. The server cannot decrypt anything, by
 construction. (Metadata such as names, sizes, and the who-shares-with-whom graph
-*is* visible to an operator — see [§11](#11-honest-non-goals).)
+_is_ visible to an operator — see [§11](#11-honest-non-goals).)
 
 ---
 
@@ -385,8 +385,8 @@ These are documented openly, not hidden.
   **values never are**.
 - **No account recovery in this version.** If you lose your passphrase **and**
   all your devices, your data **cannot** be recovered. This is the recovery
-  trilemma: you cannot simultaneously have *no backdoor*, *loss-proof*, and *zero
-  extra trust*. The cryptography does include a **generic wrap-to-public-key
+  trilemma: you cannot simultaneously have _no backdoor_, _loss-proof_, and _zero
+  extra trust_. The cryptography does include a **generic wrap-to-public-key
   primitive** that a future recovery mechanism could be built on
   ([§5](#5-the-seed-triple-trick)), **but no recovery feature exists in this
   version** — treat lost-passphrase-plus-lost-devices as unrecoverable.
@@ -398,18 +398,18 @@ These are documented openly, not hidden.
 
 ## 12. Recommended npm libraries
 
-| Concern | Library |
-|---|---|
-| HPKE core | [`@hpke/core`](https://www.npmjs.com/package/@hpke/core) |
-| HPKE KEM | [`@hpke/dhkem-x25519`](https://www.npmjs.com/package/@hpke/dhkem-x25519) |
-| HPKE AEAD | [`@hpke/chacha20poly1305`](https://www.npmjs.com/package/@hpke/chacha20poly1305) |
-| Sodium primitives | [`libsodium-wrappers-sumo`](https://www.npmjs.com/package/libsodium-wrappers-sumo), [`sodium-native`](https://www.npmjs.com/package/sodium-native) |
-| Hashing / KDF | [`hash-wasm`](https://www.npmjs.com/package/hash-wasm) |
-| Argon2id | [`argon2`](https://www.npmjs.com/package/argon2) |
-| OPAQUE | [`@serenity-kit/opaque`](https://www.npmjs.com/package/@serenity-kit/opaque) |
+| Concern                   | Library                                                                                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| HPKE core                 | [`@hpke/core`](https://www.npmjs.com/package/@hpke/core)                                                                                                                                         |
+| HPKE KEM                  | [`@hpke/dhkem-x25519`](https://www.npmjs.com/package/@hpke/dhkem-x25519)                                                                                                                         |
+| HPKE AEAD                 | [`@hpke/chacha20poly1305`](https://www.npmjs.com/package/@hpke/chacha20poly1305)                                                                                                                 |
+| Sodium primitives         | [`libsodium-wrappers-sumo`](https://www.npmjs.com/package/libsodium-wrappers-sumo), [`sodium-native`](https://www.npmjs.com/package/sodium-native)                                               |
+| Hashing / KDF             | [`hash-wasm`](https://www.npmjs.com/package/hash-wasm)                                                                                                                                           |
+| Argon2id                  | [`argon2`](https://www.npmjs.com/package/argon2)                                                                                                                                                 |
+| OPAQUE                    | [`@serenity-kit/opaque`](https://www.npmjs.com/package/@serenity-kit/opaque)                                                                                                                     |
 | Curves / ciphers / hashes | [`@noble/curves`](https://www.npmjs.com/package/@noble/curves), [`@noble/ciphers`](https://www.npmjs.com/package/@noble/ciphers), [`@noble/hashes`](https://www.npmjs.com/package/@noble/hashes) |
-| Envelope reference | [`age-encryption`](https://www.npmjs.com/package/age-encryption) |
-| Key Transparency / Merkle | [`@transparency-dev/merkle`](https://www.npmjs.com/package/@transparency-dev/merkle) |
+| Envelope reference        | [`age-encryption`](https://www.npmjs.com/package/age-encryption)                                                                                                                                 |
+| Key Transparency / Merkle | [`@transparency-dev/merkle`](https://www.npmjs.com/package/@transparency-dev/merkle)                                                                                                             |
 
 ### 12.1 At-rest implementation notes (P0)
 
@@ -417,7 +417,7 @@ These are documented openly, not hidden.
   pinned to exactly `0.7.15` — its `0.7.16` build ships a broken relative import
   of the wasm module and fails to load under Node ESM/CJS/vitest. The wrapper
   resolves its actual wasm primitive (`libsodium-sumo`) through its own semver
-  range, so the *primitive* version is fixed only by the committed
+  range, so the _primitive_ version is fixed only by the committed
   `pnpm-lock.yaml` (currently `libsodium-sumo 0.7.16`). Treat any lockfile change
   to `libsodium-sumo` as a security-reviewable crypto-core change.
 - **Default Argon2id params are interactive-tier.** `DEFAULT_KDF_PARAMS` is
