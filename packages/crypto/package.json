@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "libsodium-wrappers-sumo": "^0.7.15",
+    "libsodium-wrappers-sumo": "0.7.15",
     "hash-wasm": "^4.11.0"
   },
   "devDependencies": {
