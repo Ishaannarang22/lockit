@@ -25,3 +25,8 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Never commit local private working files into the public repo
+docs/private/
+**/private-plans/
+*.private.md
