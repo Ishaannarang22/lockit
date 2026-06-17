@@ -39,3 +39,37 @@ describe("aead tamper detection", () => {
     await expect(aeadOpen(sealed, wrong)).rejects.toThrow();
   });
 });
+
+describe("aead key-length guard", () => {
+  it("aeadSeal rejects a wrong-length key", async () => {
+    await expect(aeadSeal(new TextEncoder().encode("x"), new Uint8Array(16))).rejects.toThrow(
+      /key must be 32 bytes/,
+    );
+  });
+
+  it("aeadOpen rejects a wrong-length key", async () => {
+    const key = await randomBytes(KEY_BYTES);
+    const sealed = await aeadSeal(new TextEncoder().encode("x"), key);
+    await expect(aeadOpen(sealed, new Uint8Array(16))).rejects.toThrow(/key must be 32 bytes/);
+  });
+
+  it("rejects a too-long (33-byte) key", async () => {
+    await expect(aeadSeal(new TextEncoder().encode("x"), new Uint8Array(33))).rejects.toThrow(
+      /key must be 32 bytes/,
+    );
+  });
+});
+
+describe("randomBytes contract", () => {
+  it("returns exactly n bytes and differs across calls", async () => {
+    const a = await randomBytes(32);
+    const b = await randomBytes(32);
+    expect(a.length).toBe(32);
+    expect(b.length).toBe(32);
+    expect(Buffer.from(a).equals(Buffer.from(b))).toBe(false);
+  });
+
+  it("honors the zero-length boundary", async () => {
+    expect((await randomBytes(0)).length).toBe(0);
+  });
+});

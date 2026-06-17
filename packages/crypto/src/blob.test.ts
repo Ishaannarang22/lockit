@@ -32,4 +32,18 @@ describe("sealed-blob format", () => {
   it("rejects malformed JSON", () => {
     expect(() => decodeBlob("{not json")).toThrow();
   });
+
+  it("rejects an unsupported kdf algo", () => {
+    const bad = JSON.stringify({
+      ...JSON.parse(encodeBlob(sample)),
+      kdf: { algo: "scrypt", salt: "AAAA", params: DEFAULT_KDF_PARAMS },
+    });
+    expect(() => decodeBlob(bad)).toThrow(/unsupported kdf algo/i);
+  });
+
+  it("rejects a blob with a missing kdf object", () => {
+    expect(() =>
+      decodeBlob(JSON.stringify({ v: BLOB_VERSION, nonce: "AA", ciphertext: "AA" })),
+    ).toThrow(/unsupported kdf algo/i);
+  });
 });
