@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.vitest/
+
+# Local kv state that must never be committed
+.kv/local.json
+
+# Editor / OS
+.DS_Store
+*.log
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# Env files (kv exists to replace these, but guard anyway)
+.env
+.env.*
+!.env.example
