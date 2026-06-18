@@ -14,7 +14,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # Build first: cross-package typecheck resolves each package's emitted
+      # .d.ts (e.g. @kv/cli depends on @kv/core's declarations).
+      - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
-      - run: pnpm build
