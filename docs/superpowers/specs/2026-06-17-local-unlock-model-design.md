@@ -6,8 +6,8 @@ key ladder in [`security-crypto.md`](../../security-crypto.md) and the admission
 ## Problem
 
 The at-rest layer (P0) encrypts the global store with a key derived from a **master passphrase**
-(Argon2id → key → XChaCha20-Poly1305). But the plans never said *how the store gets unlocked
-day-to-day*: the key was "derived in client memory only," there is "no daemon," and Touch ID was
+(Argon2id → key → XChaCha20-Poly1305). But the plans never said _how the store gets unlocked
+day-to-day_: the key was "derived in client memory only," there is "no daemon," and Touch ID was
 described only as a **presence gate at admission** — never as something that releases a decryption
 key. Taken literally, that means a fresh `kv` process would need the passphrase retyped on every
 use. Users reasonably expect the 1Password experience: **passphrase once, then fingerprint.**
@@ -15,13 +15,13 @@ use. Users reasonably expect the 1Password experience: **passphrase once, then f
 This spec pins the unlock model and separates two things the plans conflated:
 
 1. **Decryption capability** — rooted in the passphrase.
-2. **Proof-of-presence** — Touch ID / OS password, used to *release* a cached key and to gate
+2. **Proof-of-presence** — Touch ID / OS password, used to _release_ a cached key and to gate
    agent-initiated access.
 
 ## The model — one mechanism
 
 > The master passphrase derives the store key. That key is cached as an **encrypted,
-> Touch-ID-gated item in the OS keychain**. *How often* Touch ID is demanded is a per-context
+> Touch-ID-gated item in the OS keychain**. _How often_ Touch ID is demanded is a per-context
 > access-policy flag. Off the Mac (no Secure Enclave) there is no cache — you provide the
 > passphrase.
 
@@ -47,13 +47,13 @@ passphrase ──Argon2id──▶ AK (account key)
 
 ### Unlock paths
 
-| Situation | Unlock |
-|---|---|
-| **You, at your Mac** | Passphrase once per session → unwrap DEK → cache DEK in the Secure-Enclave-gated keychain. Subsequent uses release it via Touch ID. Auto-lock on sleep/idle evicts the cached DEK. |
-| **Agent-initiated request** | Cached item is read with a **per-use** Touch-ID policy: the agent blocks, a native prompt shows *which app + which keys*, your fingerprint releases the value into the **child process only**, every single time. The agent never sees the passphrase or the value. |
-| **SSH** | No keychain access; type the master passphrase at the prompt (re-derives AK, unwraps DEK). Never stored. |
-| **CI / unattended** | Master passphrase supplied as a CI secret/env var. Works, but that runner then holds the key to the whole store — the deliberately-weaker mode; prefer per-secret injection long-term. |
-| **AI agent on its own** | Never unlocks. No biometric to satisfy, never handed the passphrase. It may *request* admission; a human fingerprint is always in the loop. |
+| Situation                   | Unlock                                                                                                                                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **You, at your Mac**        | Passphrase once per session → unwrap DEK → cache DEK in the Secure-Enclave-gated keychain. Subsequent uses release it via Touch ID. Auto-lock on sleep/idle evicts the cached DEK.                                                                                  |
+| **Agent-initiated request** | Cached item is read with a **per-use** Touch-ID policy: the agent blocks, a native prompt shows _which app + which keys_, your fingerprint releases the value into the **child process only**, every single time. The agent never sees the passphrase or the value. |
+| **SSH**                     | No keychain access; type the master passphrase at the prompt (re-derives AK, unwraps DEK). Never stored.                                                                                                                                                            |
+| **CI / unattended**         | Master passphrase supplied as a CI secret/env var. Works, but that runner then holds the key to the whole store — the deliberately-weaker mode; prefer per-secret injection long-term.                                                                              |
+| **AI agent on its own**     | Never unlocks. No biometric to satisfy, never handed the passphrase. It may _request_ admission; a human fingerprint is always in the loop.                                                                                                                         |
 
 ### The Touch-ID access-policy dial
 
@@ -71,16 +71,16 @@ and explicit `kv lock`. After lock, the next use needs the passphrase again.
 
 ## Layering — what's built now vs deferred
 
-| Piece | Layer | When |
-|---|---|---|
-| `wrapKey` / `unwrapKey` (symmetric key wrap) | `@kv/crypto` (pure) | **Now** (this change) |
-| DEK indirection + wrapped-DEK store envelope | `@kv/core` store | P3 |
-| Keychain cache (read/write/evict), auto-lock policy | `@kv/core` + platform | P4 |
-| Touch ID / OS-password presence via macOS LocalAuthentication; per-use vs per-session access flags | `AuthProvider` | P4 |
-| Agent-initiated per-use prompt wired through admission/`kv run` | `@kv/core` + `cli` | P4 / P5 |
-| Passphrase prompt (SSH) + `KV_PASSPHRASE` (CI, opt-in) fallbacks | `cli` | P5 |
+| Piece                                                                                              | Layer                 | When                  |
+| -------------------------------------------------------------------------------------------------- | --------------------- | --------------------- |
+| `wrapKey` / `unwrapKey` (symmetric key wrap)                                                       | `@kv/crypto` (pure)   | **Now** (this change) |
+| DEK indirection + wrapped-DEK store envelope                                                       | `@kv/core` store      | P3                    |
+| Keychain cache (read/write/evict), auto-lock policy                                                | `@kv/core` + platform | P4                    |
+| Touch ID / OS-password presence via macOS LocalAuthentication; per-use vs per-session access flags | `AuthProvider`        | P4                    |
+| Agent-initiated per-use prompt wired through admission/`kv run`                                    | `@kv/core` + `cli`    | P4 / P5               |
+| Passphrase prompt (SSH) + `KV_PASSPHRASE` (CI, opt-in) fallbacks                                   | `cli`                 | P5                    |
 
-A *fully working* fingerprint-unlock therefore lands with P3 + P4 + native macOS code. This spec
+A _fully working_ fingerprint-unlock therefore lands with P3 + P4 + native macOS code. This spec
 builds the crypto foundation now and makes the rest build-ready.
 
 ## Crypto additions to `@kv/crypto` (now)
@@ -102,16 +102,16 @@ cache are built from.
 ## Threat model & honest limits
 
 - **The agent boundary is now structural, not engineered:** a human fingerprint is in the loop on
-  every agent-initiated access, so the agent *cannot* unlock the store on its own.
+  every agent-initiated access, so the agent _cannot_ unlock the store on its own.
 - **Containment, not omnipotence (unchanged honest limit):** the per-use prompt controls the
-  *grant*. Once you approve and the value is injected into the command the agent runs, that child
+  _grant_. Once you approve and the value is injected into the command the agent runs, that child
   process holds the real secret while using it and could exfiltrate it through a command it was
   allowed to run. The fingerprint gate makes access deliberate and auditable; it does not make the
   value un-leakable afterward.
 - **The cache is only as strong as the Secure Enclave:** off-device (CI/SSH) there is no Enclave,
   so the only unlock is the passphrase, with the CI gradient noted above.
 - **Dedicated passphrase, not the OS account password:** the crypto root is a kv-owned passphrase.
-  A user may choose the same string as their macOS login, but kv never *derives from* the OS
+  A user may choose the same string as their macOS login, but kv never _derives from_ the OS
   password — so rotating the Mac password cannot orphan the vault.
 
 ## Open / future

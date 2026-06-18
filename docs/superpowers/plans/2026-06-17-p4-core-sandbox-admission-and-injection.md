@@ -12,9 +12,12 @@
 
 ## Scope — what this subsystem builds
 
-- **The project world (admitted set).** A per-project record of exactly which secret slugs have been admitted into the project's sandbox. The global store is the protected source; the project world is the only set a project may decrypt and inject from. The agent can never read the global store directly — it can only *request* admission.
+- **The project world (admitted set).** A per-project record of exactly which secret slugs have been admitted into the project's sandbox. The global store is the protected source; the project world is the only set a project may decrypt and inject from. The agent can never read the global store directly — it can only _request_ admission.
 - **The admission flow.** Request a set of secrets → build a confirmation box that lists **all** requested keys (slug, schema, field names, `hasValue`) → call `AuthProvider.authenticate()` (proof of human presence) → on success, admit the whole set into the project world. Batch semantics: one auth admits the entire batch in a single confirmation.
 - **The `AuthProvider` interface and implementations.** A pluggable proof-of-presence gate: macOS Touch ID / biometric via LocalAuthentication, OS-password fallback, and a passphrase-prompt demo fallback. Plus a deterministic mock provider for tests that the agent path can never satisfy.
+- **The unlock cache + auto-lock** (see [ADR-0009](../../adr/0009-local-unlock-model.md) and the [unlock-model spec](../specs/2026-06-17-local-unlock-model-design.md)). After one passphrase unlock, store the **DEK** (from P3's wrapped-DEK envelope) in the OS keychain, OS-encrypted with a Secure-Enclave-held key, released under a Touch-ID access policy — so daily use is passphrase-once-then-fingerprint. Auto-lock evicts the cached DEK on system sleep, an idle timeout (default 15 min, configurable), and explicit `kv lock`.
+- **The per-session vs per-use access-policy dial.** One mechanism, two policies on the keychain item: **per-session** for the user's own `kv run` (smooth), and **per-use** for **agent-initiated** access — a native fingerprint prompt _every single time_, showing which app + which keys, releasing the value into the child process only. The agent never sees the passphrase or value; a human fingerprint is structurally in the loop on every agent access.
+- **Off-device passphrase fallback.** Where there is no Secure Enclave (SSH, CI), unlock falls back to the master passphrase: typed at a prompt over SSH, or supplied via `KV_PASSPHRASE` in CI (opt-in, documented as the deliberately-weaker mode). Wired through the CLI in P5.
 - **The injection engine for `kv run`.** Resolve slots (via the Plan #3 resolver) for the selected environment, decrypt only the needed values **in memory**, spawn the child process with env vars set for its lifetime, **mask** every secret value in the child's stdout/stderr, materialize `type:"file"` secrets to a `0600` tmpfs temp file (set the path env var) and **shred** them on exit, write nothing to disk.
 - **`kv run --dry-run`.** The agent-safe verification primitive: print the inject env-var **names** that will be set (values masked), and flag duplicate inject names, unfilled open slots, and ambiguous resolution — without running anything or revealing a value.
 - **The audit log.** Append-only local record of admissions and uses (and refused/failed admissions), so exfiltration attempts and unexpected access leave a trail.
@@ -62,11 +65,16 @@ interface ProjectWorld {
 
 ```ts
 interface AuthRequest {
-  reason: string;           // shown to the human, e.g. "Admit 3 secrets to acme-web"
+  reason: string; // shown to the human, e.g. "Admit 3 secrets to acme-web"
   keys: ConfirmationItem[]; // value-free: slug, schema, fieldKeys, hasValue
 }
-interface AuthResult { ok: boolean; method: "touchid" | "os-password" | "passphrase" | "mock"; }
-interface AuthProvider { authenticate(req: AuthRequest): Promise<AuthResult>; }
+interface AuthResult {
+  ok: boolean;
+  method: "touchid" | "os-password" | "passphrase" | "mock";
+}
+interface AuthProvider {
+  authenticate(req: AuthRequest): Promise<AuthResult>;
+}
 ```
 
 **Admission flow.** Pure orchestration over the resolver, the confirmation-box builder, the `AuthProvider`, the project world, and the audit log. Batch: a request carrying N keys produces one `AuthRequest`, one `authenticate()` call, and (on `ok`) one atomic admit of all N. On `ok === false`, nothing is admitted and a `refused` audit entry is written. The agent path is structurally forced through this same function — there is no "admit without auth" code path.
@@ -77,7 +85,7 @@ interface AuthProvider { authenticate(req: AuthRequest): Promise<AuthResult>; }
 
 **File materialize + shred.** Writes file-type secret contents to a `0600` file on tmpfs, returns the path for the env var, and registers a shredder that runs on child exit and on abnormal termination signals.
 
-**Dry-run.** Produces a value-free report: the env-var names that *would* be set, plus structured flags for duplicate inject names (the unique-inject-name invariant), open-unfilled slots, and ambiguous resolution. Never decrypts; never emits a value, not even masked.
+**Dry-run.** Produces a value-free report: the env-var names that _would_ be set, plus structured flags for duplicate inject names (the unique-inject-name invariant), open-unfilled slots, and ambiguous resolution. Never decrypts; never emits a value, not even masked.
 
 **Audit log.** Append-only entries `{ ts, action: "admit"|"use"|"refused", project, slugs, method? }` — slugs and metadata only, never values.
 

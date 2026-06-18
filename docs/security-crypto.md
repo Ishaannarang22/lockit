@@ -430,6 +430,14 @@ These are documented openly, not hidden.
   `iterations`/`memorySize`/`parallelism` before invoking Argon2id, so a tampered
   header cannot force unbounded CPU/RAM (or an uncontrolled allocation error) when
   opening a blob.
+- **Day-to-day unlock model.** How the store is unlocked without retyping the
+  passphrase every time — a passphrase-derived AK, a random DEK wrapped under it
+  (`wrapKey`/`unwrapKey`, shipped in P0), and that DEK cached in a Touch-ID-gated
+  keychain item with a per-session vs per-use policy — is specified in
+  [ADR-0009](adr/0009-local-unlock-model.md) and the
+  [unlock-model spec](superpowers/specs/2026-06-17-local-unlock-model-design.md).
+  Agent-initiated access always demands a fresh fingerprint; SSH/CI fall back to
+  the passphrase.
 
 ---
 

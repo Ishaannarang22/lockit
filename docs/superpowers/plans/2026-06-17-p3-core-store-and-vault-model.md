@@ -19,6 +19,7 @@
 - The **per-environment axis**: an optional secondary axis; a slot's `to` may be a plain slug (same in all contexts) or an env→slug map. The resolver runs per selected environment.
 - The **unique-inject-name invariant**: within one vault, the union of all injected env-var names must be unique; a duplicate is a **hard error** at link time (and re-checked at dry-run by a later plan).
 - The **local resolution cache** (`./.kv/local.json`, **gitignored**): records how each **open** slot was filled on this machine — **slugs only, never values**. Deleting it simply re-resolves next run.
+- **DEK indirection for the unlock model** (see [ADR-0009](../../adr/0009-local-unlock-model.md) and the [unlock-model spec](../specs/2026-06-17-local-unlock-model-design.md)): the store payload is sealed under a **random DEK**, and the DEK is persisted **wrapped under the passphrase-derived AK** via `@kv/crypto.wrapKey` / `unwrapKey` — not sealed directly under the passphrase. This indirection is what lets P4 cache the DEK in a Touch-ID-gated keychain (passphrase once, then fingerprint) and re-key the unlock path without re-encrypting the store.
 
 ## Files / modules to create or modify — concrete paths + one-line responsibility
 
@@ -29,7 +30,7 @@
 - `packages/core/src/model/slot.ts` — `Slot`, `Bind`, `InjectMap`, env-map `to` types + slot validation.
 - `packages/core/src/store/store.ts` — in-memory `GlobalStore`: add/get/list/remove/rename(aka)/rotate/tag, slug-keyed indexing, slug+aka lookup.
 - `packages/core/src/store/store-codec.ts` — serialize/deserialize the store's plaintext JSON (the bytes that get sealed); version field for forward-compat.
-- `packages/core/src/store/store-persist.ts` — `saveStore`/`loadStore`: seal the codec bytes via `@kv/crypto.sealWithPassphrase` and open via `openWithPassphrase`; the only at-rest path.
+- `packages/core/src/store/store-persist.ts` — `saveStore`/`loadStore`: seal the codec bytes under a random **DEK** and persist the DEK **wrapped under the passphrase-derived AK** (`@kv/crypto.wrapKey`/`unwrapKey`); the only at-rest path. (Opening by passphrase re-derives AK → unwraps DEK → decrypts; opening by a cached DEK skips the passphrase — see P4.)
 - `packages/core/src/vault/vault.ts` — read/write `./.kv/vault.json`; add/remove/list slots; enforce unique-inject-name on mutation.
 - `packages/core/src/vault/inject.ts` — normalize an `inject` map to a flat env-var-name set; the unique-inject-name checker (returns structured duplicate error).
 - `packages/core/src/schema/registry.ts` — built-in schema registry (provider → expected field shapes), `lookupSchema`, free-string fallback, completeness check.
@@ -45,16 +46,24 @@
 
 ```ts
 type FieldType = "env" | "file";
-interface Field { key: string; type: FieldType; hasValue: boolean }
-interface Version { id: string; current: boolean; createdAt: string }
+interface Field {
+  key: string;
+  type: FieldType;
+  hasValue: boolean;
+}
+interface Version {
+  id: string;
+  current: boolean;
+  createdAt: string;
+}
 interface Secret {
-  slug: string;          // portable identity, e.g. "supabase/acme"
-  schema: string;        // registry name or free string
-  aka: string[];         // rename-safe aliases
+  slug: string; // portable identity, e.g. "supabase/acme"
+  schema: string; // registry name or free string
+  aka: string[]; // rename-safe aliases
   fields: Field[];
   versions: Version[];
   tags: string[];
-  localId?: string;      // machine-local only, never committed/portable
+  localId?: string; // machine-local only, never committed/portable
 }
 ```
 
@@ -66,7 +75,12 @@ interface Secret {
 
 ```ts
 type To = string | Record<string, string> | null; // slug | {env: slug} | open
-interface Slot { schema: string; bind: "pinned" | "open"; to: To; inject: Record<string, string | string[]> }
+interface Slot {
+  schema: string;
+  bind: "pinned" | "open";
+  to: To;
+  inject: Record<string, string | string[]>;
+}
 ```
 
 **Schema registry.** `lookupSchema(name)` returns built-in field shapes or `undefined` (free string). A completeness check reports missing expected fields as advisory only — never blocks.
@@ -76,8 +90,8 @@ interface Slot { schema: string; bind: "pinned" | "open"; to: To; inject: Record
 ```ts
 type Resolution =
   | { kind: "resolved"; slug: string; autoFilled: boolean }
-  | { kind: "missing"; wanted: string }            // pinned slug absent
-  | { kind: "open-unfilled"; schema: string }      // open, 0 candidates
+  | { kind: "missing"; wanted: string } // pinned slug absent
+  | { kind: "open-unfilled"; schema: string } // open, 0 candidates
   | { kind: "ambiguous"; candidates: { slug: string; schema: string; tags: string[] }[] };
 ```
 

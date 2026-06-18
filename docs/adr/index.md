@@ -25,13 +25,14 @@ Every ADR follows the same structure:
 
 ## Index
 
-| ADR | Title | Status |
-| --- | --- | --- |
-| [0001](0001-language-typescript.md) | Language: TypeScript on Node | Accepted |
-| [0002](0002-monorepo-package-layout.md) | Monorepo and package layout | Accepted |
-| [0003](0003-sets-and-slots-data-model.md) | The "Sets + Slots" data model | Accepted |
-| [0004](0004-orgmesh-zero-knowledge-crypto.md) | OrgMesh zero-knowledge crypto | Accepted |
-| [0005](0005-drop-mcp-cli-and-plugin.md) | Drop MCP; CLI and plugin instead | Accepted |
-| [0006](0006-references-not-copies.md) | References, not copies | Accepted |
-| [0007](0007-project-world-sandbox-human-gated-admission.md) | Project-world sandbox + human-gated admission | Accepted |
-| [0008](0008-no-account-recovery-in-v1.md) | No account recovery in v1 | Accepted |
+| ADR                                                         | Title                                                               | Status   |
+| ----------------------------------------------------------- | ------------------------------------------------------------------- | -------- |
+| [0001](0001-language-typescript.md)                         | Language: TypeScript on Node                                        | Accepted |
+| [0002](0002-monorepo-package-layout.md)                     | Monorepo and package layout                                         | Accepted |
+| [0003](0003-sets-and-slots-data-model.md)                   | The "Sets + Slots" data model                                       | Accepted |
+| [0004](0004-orgmesh-zero-knowledge-crypto.md)               | OrgMesh zero-knowledge crypto                                       | Accepted |
+| [0005](0005-drop-mcp-cli-and-plugin.md)                     | Drop MCP; CLI and plugin instead                                    | Accepted |
+| [0006](0006-references-not-copies.md)                       | References, not copies                                              | Accepted |
+| [0007](0007-project-world-sandbox-human-gated-admission.md) | Project-world sandbox + human-gated admission                       | Accepted |
+| [0008](0008-no-account-recovery-in-v1.md)                   | No account recovery in v1                                           | Accepted |
+| [0009](0009-local-unlock-model.md)                          | Local unlock model: passphrase root + Touch-ID-gated keychain cache | Accepted |
