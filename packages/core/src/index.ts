@@ -9,3 +9,5 @@ export {
   secretEnv,
 } from "./store/store.js";
 export type { StoreData, StoredSecret, StoredField, UpsertFieldInput } from "./store/store.js";
+export { saveStore, loadStore } from "./store/store-persist.js";
+export { kvHome, storePath } from "./paths.js";
