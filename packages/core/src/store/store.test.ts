@@ -262,30 +262,20 @@ describe("upsertField — immutability / copy-on-write isolation", () => {
     expect(getSecret(s1, "a/b")?.fields).toHaveLength(1);
   });
 
-  // BUG (documented in notes): upsertField shallow-copies each secret's `fields`
-  // array but reuses the field *objects*. Updating an existing field mutates the
-  // shared object in place, so the prior store version's value changes too. This
-  // violates the "returns new StoreData, does not mutate input" invariant.
-  //
-  // The assertions below describe the CORRECT behavior. We mark the test with
-  // `it.fails` so the suite stays green while precisely encoding the defect:
-  // the moment the production bug is fixed, this `it.fails` will start FAILING,
-  // forcing whoever fixes it to flip this back to a plain `it`.
-  it.fails(
-    "does not mutate the previous store's field when updating a value in the next store",
-    () => {
-      const s1 = upsertField(emptyStore(), {
-        slug: "a/b",
-        schema: "x",
-        key: "K",
-        type: "env",
-        value: "old",
-      });
-      const s2 = upsertField(s1, { slug: "a/b", schema: "x", key: "K", type: "env", value: "new" });
-      expect(getSecret(s1, "a/b")?.fields[0]?.value).toBe("old");
-      expect(getSecret(s2, "a/b")?.fields[0]?.value).toBe("new");
-    },
-  );
+  // Copy-on-write: upsertField deep-copies field objects, so updating a value in
+  // the next store does not mutate the previous store's field.
+  it("does not mutate the previous store's field when updating a value in the next store", () => {
+    const s1 = upsertField(emptyStore(), {
+      slug: "a/b",
+      schema: "x",
+      key: "K",
+      type: "env",
+      value: "old",
+    });
+    const s2 = upsertField(s1, { slug: "a/b", schema: "x", key: "K", type: "env", value: "new" });
+    expect(getSecret(s1, "a/b")?.fields[0]?.value).toBe("old");
+    expect(getSecret(s2, "a/b")?.fields[0]?.value).toBe("new");
+  });
 
   it("copies the fields array (not shared by reference between versions)", () => {
     const s1 = upsertField(emptyStore(), {
@@ -455,29 +445,22 @@ describe("listSecrets — value-free projection", () => {
     expect(getSecret(s, "a/b")?.fields).toHaveLength(1);
   });
 
-  // BUG (documented in notes): listSecrets aliases each secret's `aka` and `tags`
-  // arrays by reference instead of copying them, so mutating the listed result
-  // mutates the store. The inventory says "listSecrets returns new objects, safe
-  // to mutate". The assertions describe the CORRECT behavior; `it.fails` keeps the
-  // suite green while precisely encoding the defect and acting as a live regression
-  // marker (it flips to failing once the bug is fixed).
-  it.fails(
-    "returns fresh aka/tags arrays (mutating the listed result does not affect the store)",
-    () => {
-      const s = upsertField(emptyStore(), {
-        slug: "a/b",
-        schema: "x",
-        key: "K",
-        type: "env",
-        value: "v",
-      });
-      const snapshot = JSON.stringify(s);
-      const listed = listSecrets(s);
-      listed[0]?.tags.push("mutated");
-      listed[0]?.aka.push("alias");
-      expect(JSON.stringify(s)).toBe(snapshot);
-    },
-  );
+  // listSecrets copies each secret's aka/tags, so mutating the listed result does
+  // not affect the store.
+  it("returns fresh aka/tags arrays (mutating the listed result does not affect the store)", () => {
+    const s = upsertField(emptyStore(), {
+      slug: "a/b",
+      schema: "x",
+      key: "K",
+      type: "env",
+      value: "v",
+    });
+    const snapshot = JSON.stringify(s);
+    const listed = listSecrets(s);
+    listed[0]?.tags.push("mutated");
+    listed[0]?.aka.push("alias");
+    expect(JSON.stringify(s)).toBe(snapshot);
+  });
 });
 
 describe("secretEnv — env-only injection map", () => {

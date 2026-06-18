@@ -52,9 +52,11 @@ export function upsertField(store: StoreData, input: UpsertFieldInput): StoreDat
   if (!isValidFieldKey(input.key)) {
     throw new Error(`invalid field key: ${JSON.stringify(input.key)}`);
   }
+  // Deep copy-on-write: new field OBJECTS (not just a new array) so updating an
+  // existing field's value cannot mutate the input store's shared field.
   const secrets = store.secrets.map((s) => ({
     ...s,
-    fields: [...s.fields],
+    fields: s.fields.map((f) => ({ ...f })),
     aka: [...s.aka],
     tags: [...s.tags],
   }));
@@ -82,10 +84,10 @@ export function listSecrets(store: StoreData): Secret[] {
   return store.secrets.map((s) => ({
     slug: s.slug,
     schema: s.schema,
-    aka: s.aka,
+    aka: [...s.aka],
     fields: s.fields.map((f) => ({ key: f.key, type: f.type, hasValue: f.value.length > 0 })),
     versions: [],
-    tags: s.tags,
+    tags: [...s.tags],
   }));
 }
 
