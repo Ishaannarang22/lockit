@@ -10,7 +10,7 @@
 
 ## Scope — what this subsystem builds
 
-- The **global store**: a collection of **Secrets** — typed field-bags `{ slug, schema, aka[], fields[], versions[], tags[], localId }`, where each field is `{ key, type: "env" | "file", hasValue }` plus a sealed value. Persisted **at rest** as a single sealed blob via `@kv/crypto.sealWithPassphrase`; opened in memory via `openWithPassphrase`.
+- The **global store**: a collection of **Secrets** — typed field-bags `{ slug, schema, aka[], fields[], versions[], tags[], localId }`, where each field is `{ key, type: "env" | "file", hasValue }` plus a sealed value. Persisted **at rest** under a random **DEK** (itself kept wrapped under the passphrase-derived AK — see the DEK-indirection bullet below); opened in memory by unwrapping the DEK.
 - **Store keyed by slug, never by env-var name** — so `supabase/acme` and `supabase/blog` can both carry a `SUPABASE_URL` field with zero collision. This is the central invariant the whole layer exists to guarantee structurally.
 - The **project vault** (`./.kv/vault.json`): a committed, **value-free** list of **Slots** `{ schema, bind: "pinned" | "open", to: slug | { env: slug } | null, inject: { fieldKey -> ENV_VAR_NAME | ENV_VAR_NAME[] } }`. Read/write as plain JSON — it contains no secret material.
 - The **built-in schema registry** (field shapes for known providers, e.g. `openai`, `supabase`, `gcp-service-account`) plus acceptance of **free-string** schemas for unknown providers. Powers completeness checks and field-key/env-var autocomplete; never constrains or blocks storing a Secret.
@@ -69,7 +69,7 @@ interface Secret {
 
 **Global store.** Slug-keyed map with lookup that also consults `aka` (so renamed slugs keep resolving). `rename` moves the old slug into `aka`; `rotate` appends a new current `Version`. Listing output is strictly value-free.
 
-**At-rest persistence.** `store-codec` turns the store (including sealed field values) into deterministic JSON bytes; `store-persist` hands those bytes to `sealWithPassphrase` to produce the on-disk blob and reverses it with `openWithPassphrase`. Core never reimplements crypto — it only calls Plan #1's primitive.
+**At-rest persistence.** `store-codec` turns the store (including sealed field values) into deterministic JSON bytes; `store-persist` seals those bytes under a random **DEK** (`@kv/crypto` AEAD) and stores the DEK **wrapped under the passphrase-derived AK** (`wrapKey`/`unwrapKey`). Loading re-derives AK from the passphrase (or reads a cached DEK — see P4), unwraps the DEK, and decrypts. Core never reimplements crypto — it only calls `@kv/crypto` primitives.
 
 **Vault + inject.** The vault is plain committed JSON. `inject.ts` flattens `{ fieldKey -> name | name[] }` to a set of env-var names; on any slot add/update the union across all slots must stay unique, else a structured `DuplicateInjectName` hard error naming the colliding env var.
 
