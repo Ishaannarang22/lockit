@@ -18,5 +18,7 @@ jobs:
       # .d.ts (e.g. @kv/cli depends on @kv/core's declarations).
       - run: pnpm build
       - run: pnpm typecheck
+      - run: pnpm typecheck:e2e
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm test:e2e

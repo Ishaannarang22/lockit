@@ -9,7 +9,9 @@
     "build": "pnpm -r build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "typecheck": "pnpm -r typecheck",
+    "typecheck:e2e": "tsc -p e2e/tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
