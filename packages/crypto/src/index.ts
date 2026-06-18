@@ -5,3 +5,4 @@ export type { KdfParams } from "./kdf.js";
 export { encodeBlob, decodeBlob, BLOB_VERSION } from "./blob.js";
 export type { SealedBlob } from "./blob.js";
 export { sealWithPassphrase, openWithPassphrase } from "./vault-seal.js";
+export { wrapKey, unwrapKey } from "./keywrap.js";
