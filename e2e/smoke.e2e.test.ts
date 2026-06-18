@@ -24,7 +24,14 @@ describe("kv e2e smoke (real binary in a sandbox)", () => {
 
       const run = await runKv(
         home,
-        ["run", "openai/dev", "--", "node", "-e", "process.stdout.write(process.env.OPENAI_API_KEY ?? 'MISSING')"],
+        [
+          "run",
+          "openai/dev",
+          "--",
+          "node",
+          "-e",
+          "process.stdout.write(process.env.OPENAI_API_KEY ?? 'MISSING')",
+        ],
         { passphrase: PW },
       );
       expect(run.code).toBe(0);
