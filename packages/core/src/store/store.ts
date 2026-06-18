@@ -29,6 +29,14 @@ export interface UpsertFieldInput {
   value: string;
 }
 
+// A field key is the env-var name it injects as, so it must be a valid env-var
+// identifier — no spaces, "=", or newlines that would corrupt the child's env.
+const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+export function isValidFieldKey(key: string): boolean {
+  return ENV_KEY_RE.test(key);
+}
+
 export function emptyStore(): StoreData {
   return { version: 1, secrets: [] };
 }
@@ -41,7 +49,15 @@ export function getSecret(store: StoreData, slug: string): StoredSecret | undefi
 export function upsertField(store: StoreData, input: UpsertFieldInput): StoreData {
   if (!isValidSlug(input.slug)) throw new Error(`invalid slug: ${JSON.stringify(input.slug)}`);
   if (input.schema.length === 0) throw new Error("schema must not be empty");
-  const secrets = store.secrets.map((s) => ({ ...s, fields: [...s.fields] }));
+  if (!isValidFieldKey(input.key)) {
+    throw new Error(`invalid field key: ${JSON.stringify(input.key)}`);
+  }
+  const secrets = store.secrets.map((s) => ({
+    ...s,
+    fields: [...s.fields],
+    aka: [...s.aka],
+    tags: [...s.tags],
+  }));
   let sec = secrets.find((s) => s.slug === input.slug);
   if (!sec) {
     sec = { slug: input.slug, schema: input.schema, fields: [], aka: [], tags: [] };

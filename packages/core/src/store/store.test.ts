@@ -23,8 +23,20 @@ describe("global store", () => {
 
   it("updates an existing field value in place (no duplicate)", () => {
     let s = emptyStore();
-    s = upsertField(s, { slug: "openai/dev", schema: "openai", key: "K", type: "env", value: "old" });
-    s = upsertField(s, { slug: "openai/dev", schema: "openai", key: "K", type: "env", value: "new" });
+    s = upsertField(s, {
+      slug: "openai/dev",
+      schema: "openai",
+      key: "K",
+      type: "env",
+      value: "old",
+    });
+    s = upsertField(s, {
+      slug: "openai/dev",
+      schema: "openai",
+      key: "K",
+      type: "env",
+      value: "new",
+    });
     expect(getSecret(s, "openai/dev")?.fields).toHaveLength(1);
     expect(getSecret(s, "openai/dev")?.fields[0]?.value).toBe("new");
   });
@@ -52,7 +64,13 @@ describe("global store", () => {
 
   it("rejects an invalid slug", () => {
     expect(() =>
-      upsertField(emptyStore(), { slug: "Bad Slug", schema: "x", key: "K", type: "env", value: "v" }),
+      upsertField(emptyStore(), {
+        slug: "Bad Slug",
+        schema: "x",
+        key: "K",
+        type: "env",
+        value: "v",
+      }),
     ).toThrow(/invalid slug/);
   });
 
@@ -66,5 +84,13 @@ describe("global store", () => {
     });
     s = removeSecret(s, "openai/dev");
     expect(getSecret(s, "openai/dev")).toBeUndefined();
+  });
+
+  it("rejects an invalid field key (env-var name)", () => {
+    for (const bad of ["BAD KEY", "K=V", "has\nnewline", "", "1leading"]) {
+      expect(() =>
+        upsertField(emptyStore(), { slug: "a/b", schema: "x", key: bad, type: "env", value: "v" }),
+      ).toThrow(/invalid field key/);
+    }
   });
 });

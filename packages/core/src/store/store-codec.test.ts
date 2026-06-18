@@ -23,4 +23,11 @@ describe("store codec", () => {
     const bytes = new TextEncoder().encode(JSON.stringify({ version: 1, secrets: {} }));
     expect(() => decodeStore(bytes)).toThrow(/malformed store/);
   });
+
+  it("rejects a structurally malformed secret", () => {
+    const bytes = new TextEncoder().encode(
+      JSON.stringify({ version: 1, secrets: [{ slug: "a/b" }] }),
+    );
+    expect(() => decodeStore(bytes)).toThrow(/malformed store/);
+  });
 });

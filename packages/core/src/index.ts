@@ -7,6 +7,7 @@ export {
   listSecrets,
   removeSecret,
   secretEnv,
+  isValidFieldKey,
 } from "./store/store.js";
 export type { StoreData, StoredSecret, StoredField, UpsertFieldInput } from "./store/store.js";
 export { saveStore, loadStore } from "./store/store-persist.js";
