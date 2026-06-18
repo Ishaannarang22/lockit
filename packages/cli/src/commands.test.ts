@@ -118,4 +118,34 @@ describe("kv cli commands", () => {
     expect(code).toBe(1);
     expect(set.err).toContain("KV_PASSPHRASE is not set");
   });
+
+  it("keeps a secret masked even when the child splits it across two writes", async () => {
+    await cmdSet(makeIo(["openai/dev", "MYKEY"], `${SECRET}\n`, { out: "", err: "" }));
+    const run: Capture = { out: "", err: "" };
+    const code = await cmdRun(
+      makeIo(
+        [
+          "openai/dev",
+          "node",
+          "-e",
+          "const v=process.env.MYKEY;process.stdout.write('A'+v.slice(0,10));setTimeout(()=>process.stdout.write(v.slice(10)+'B'),30)",
+        ],
+        "",
+        run,
+      ),
+    );
+    expect(code).toBe(0);
+    expect(run.out).not.toContain(SECRET);
+    expect(run.out).toContain("***");
+  });
+
+  it("propagates a signal-killed child as a non-zero exit code", async () => {
+    await cmdSet(makeIo(["openai/dev", "MYKEY"], `${SECRET}\n`, { out: "", err: "" }));
+    const run: Capture = { out: "", err: "" };
+    const code = await cmdRun(
+      makeIo(["openai/dev", "node", "-e", "process.kill(process.pid, 'SIGKILL')"], "", run),
+    );
+    expect(code).not.toBe(0);
+    expect(code).toBeGreaterThanOrEqual(128);
+  });
 });
