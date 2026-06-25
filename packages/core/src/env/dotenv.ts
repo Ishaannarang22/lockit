@@ -29,7 +29,8 @@ export function parseDotenv(text: string): DotenvEntry[] {
     const eq = withoutExport.indexOf("=");
     if (eq === -1) throw new Error(`malformed .env line ${i + 1}: no "=" found`);
     const key = withoutExport.slice(0, eq).trim();
-    if (!isValidFieldKey(key)) throw new Error(`malformed .env line ${i + 1}: invalid key ${JSON.stringify(key)}`);
+    if (!isValidFieldKey(key))
+      throw new Error(`malformed .env line ${i + 1}: invalid key ${JSON.stringify(key)}`);
     const value = unquote(withoutExport.slice(eq + 1).trim());
     entries.push({ key, value });
   }

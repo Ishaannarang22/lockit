@@ -15,8 +15,12 @@ function makeIo(argv: string[], home: string): Io & { stdout: string; stderr: st
     env: { ...process.env, LOCKIT_HOME: home, LOCKIT_PASSPHRASE: PASS } as NodeJS.ProcessEnv,
     stdout: "",
     stderr: "",
-    out(s: string) { (this as { stdout: string }).stdout += s; },
-    err(s: string) { (this as { stderr: string }).stderr += s; },
+    out(s: string) {
+      (this as { stdout: string }).stdout += s;
+    },
+    err(s: string) {
+      (this as { stderr: string }).stderr += s;
+    },
   };
   return io as Io & { stdout: string; stderr: string };
 }

@@ -20,8 +20,12 @@ function makeIo(
     authorize: opts.authorize,
     stdout: "",
     stderr: "",
-    out(s: string) { (this as { stdout: string }).stdout += s; },
-    err(s: string) { (this as { stderr: string }).stderr += s; },
+    out(s: string) {
+      (this as { stdout: string }).stdout += s;
+    },
+    err(s: string) {
+      (this as { stderr: string }).stderr += s;
+    },
   };
   return io as Io & { stdout: string; stderr: string };
 }
@@ -89,7 +93,9 @@ describe("cmdPull", () => {
     expect(readFileSync(out, "utf8")).toContain("API_KEY=old");
     expect(io.stdout).toMatch(/skipped 1/);
 
-    const forced = makeIo(["API_KEY", "--out", out, "--force"], home, { authorize: async () => PASS });
+    const forced = makeIo(["API_KEY", "--out", out, "--force"], home, {
+      authorize: async () => PASS,
+    });
     expect(await cmdPull(forced)).toBe(0);
     expect(readFileSync(out, "utf8")).toContain("API_KEY=sk-live-123");
   });

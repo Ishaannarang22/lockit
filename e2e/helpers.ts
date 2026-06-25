@@ -22,7 +22,7 @@ export interface RunOpts {
 
 /** Spawn the real `lockit` binary in a sandbox HOME and capture stdout/stderr/exit.
  *  Black box: we only feed argv + stdin + env and observe outputs. */
-export function runVeyl(home: string, args: string[], opts: RunOpts = {}): Promise<RunResult> {
+export function runLockit(home: string, args: string[], opts: RunOpts = {}): Promise<RunResult> {
   return new Promise((resolveP, reject) => {
     const env: NodeJS.ProcessEnv = { ...process.env, LOCKIT_HOME: home, ...opts.env };
     if (opts.passphrase !== undefined) env.LOCKIT_PASSPHRASE = opts.passphrase;

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { runVeyl, withSandbox } from "./helpers.js";
+import { runLockit, withSandbox } from "./helpers.js";
 
 const PW = "e2e-ls-pass";
 
 describe("lockit ls (e2e, real binary)", () => {
   it("prints nothing for an empty store and exits 0", async () => {
     await withSandbox(async (home) => {
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       expect(ls.code).toBe(0);
       expect(ls.stdout).toBe("");
       expect(ls.stderr).toBe("");
@@ -16,11 +16,11 @@ describe("lockit ls (e2e, real binary)", () => {
   it("lists a single-field secret value-free as '<slug>  [<schema>]  <KEY>'", async () => {
     await withSandbox(async (home) => {
       const secret = "sk-e2e-LS-VALUEFREE-0001";
-      await runVeyl(home, ["set", "openai/dev", "OPENAI_API_KEY"], {
+      await runLockit(home, ["set", "openai/dev", "OPENAI_API_KEY"], {
         passphrase: PW,
         stdin: secret,
       });
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       expect(ls.code).toBe(0);
       expect(ls.stdout).toBe("openai/dev  [openai]  OPENAI_API_KEY\n");
       expect(ls.stdout).not.toContain(secret);
@@ -30,10 +30,13 @@ describe("lockit ls (e2e, real binary)", () => {
 
   it("shows multiple field keys comma-separated in insertion order, never a value", async () => {
     await withSandbox(async (home) => {
-      await runVeyl(home, ["set", "openai/dev", "ALPHA"], { passphrase: PW, stdin: "v-alpha" });
-      await runVeyl(home, ["set", "openai/dev", "BRAVO"], { passphrase: PW, stdin: "v-bravo" });
-      await runVeyl(home, ["set", "openai/dev", "CHARLIE"], { passphrase: PW, stdin: "v-charlie" });
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      await runLockit(home, ["set", "openai/dev", "ALPHA"], { passphrase: PW, stdin: "v-alpha" });
+      await runLockit(home, ["set", "openai/dev", "BRAVO"], { passphrase: PW, stdin: "v-bravo" });
+      await runLockit(home, ["set", "openai/dev", "CHARLIE"], {
+        passphrase: PW,
+        stdin: "v-charlie",
+      });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       expect(ls.code).toBe(0);
       expect(ls.stdout).toBe("openai/dev  [openai]  ALPHA,BRAVO,CHARLIE\n");
       expect(ls.stdout).not.toContain("v-alpha");
@@ -44,20 +47,20 @@ describe("lockit ls (e2e, real binary)", () => {
 
   it("uses exactly two spaces around the [schema] token", async () => {
     await withSandbox(async (home) => {
-      await runVeyl(home, ["set", "openai/dev", "K", "--schema", "custom"], {
+      await runLockit(home, ["set", "openai/dev", "K", "--schema", "custom"], {
         passphrase: PW,
         stdin: "v",
       });
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       expect(ls.stdout).toBe("openai/dev  [custom]  K\n");
     });
   });
 
   it("lists multiple secrets one per line, each terminated by a newline", async () => {
     await withSandbox(async (home) => {
-      await runVeyl(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "a" });
-      await runVeyl(home, ["set", "stripe/live", "K"], { passphrase: PW, stdin: "b" });
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      await runLockit(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "a" });
+      await runLockit(home, ["set", "stripe/live", "K"], { passphrase: PW, stdin: "b" });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       expect(ls.code).toBe(0);
       expect(ls.stdout).toBe("openai/dev  [openai]  K\nstripe/live  [stripe]  K\n");
     });
@@ -66,11 +69,11 @@ describe("lockit ls (e2e, real binary)", () => {
   it("never reveals a value even for a file-type field", async () => {
     await withSandbox(async (home) => {
       const secret = "sk-e2e-FILE-FIELD-LS-0001";
-      await runVeyl(home, ["set", "openai/dev", "TOKEN", "--file"], {
+      await runLockit(home, ["set", "openai/dev", "TOKEN", "--file"], {
         passphrase: PW,
         stdin: secret,
       });
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       expect(ls.stdout).toBe("openai/dev  [openai]  TOKEN\n");
       expect(ls.stdout).not.toContain(secret);
     });
@@ -78,7 +81,7 @@ describe("lockit ls (e2e, real binary)", () => {
 
   it("missing LOCKIT_PASSPHRASE is a clear error with exit 1", async () => {
     await withSandbox(async (home) => {
-      const ls = await runVeyl(home, ["ls"], { env: { LOCKIT_PASSPHRASE: "" } });
+      const ls = await runLockit(home, ["ls"], { env: { LOCKIT_PASSPHRASE: "" } });
       expect(ls.code).toBe(1);
       expect(ls.stderr).toContain("LOCKIT_PASSPHRASE is not set");
       expect(ls.stdout).toBe("");
@@ -87,8 +90,8 @@ describe("lockit ls (e2e, real binary)", () => {
 
   it("a wrong passphrase refuses to decrypt (exit 1, value-free error)", async () => {
     await withSandbox(async (home) => {
-      await runVeyl(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "v" });
-      const ls = await runVeyl(home, ["ls"], { passphrase: "WRONG-passphrase" });
+      await runLockit(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "v" });
+      const ls = await runLockit(home, ["ls"], { passphrase: "WRONG-passphrase" });
       expect(ls.code).toBe(1);
       expect(ls.stderr).toContain("wrong passphrase or corrupted");
       expect(ls.stdout).toBe("");

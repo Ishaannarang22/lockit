@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { runVeyl, withSandbox } from "./helpers.js";
+import { runLockit, withSandbox } from "./helpers.js";
 
 const PW = "e2e-set-pass";
 
@@ -9,7 +9,7 @@ describe("lockit set (e2e, real binary)", () => {
   it("stores the stdin value and prints a value-free confirmation; argv positional is ignored", async () => {
     await withSandbox(async (home) => {
       const secret = "sk-e2e-STDIN-ONLY-0001";
-      const set = await runVeyl(
+      const set = await runLockit(
         home,
         ["set", "openai/dev", "OPENAI_API_KEY", "ARGV_SHOULD_BE_IGNORED"],
         { passphrase: PW, stdin: secret },
@@ -21,7 +21,7 @@ describe("lockit set (e2e, real binary)", () => {
       expect(set.stdout).not.toContain("ARGV_SHOULD_BE_IGNORED");
 
       // Prove the *stdin* value (not the argv token) is what the child injects.
-      const run = await runVeyl(
+      const run = await runLockit(
         home,
         [
           "run",
@@ -41,31 +41,35 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("defaults the schema to the slug's first segment", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set", "supabase/acme", "DB_URL"], {
+      const set = await runLockit(home, ["set", "supabase/acme", "DB_URL"], {
         passphrase: PW,
         stdin: "postgres://x",
       });
       expect(set.code).toBe(0);
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       expect(ls.stdout).toBe("supabase/acme  [supabase]  DB_URL\n");
     });
   });
 
   it("--schema overrides the default schema", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set", "supabase/acme", "DB_URL", "--schema", "postgres"], {
-        passphrase: PW,
-        stdin: "v",
-      });
+      const set = await runLockit(
+        home,
+        ["set", "supabase/acme", "DB_URL", "--schema", "postgres"],
+        {
+          passphrase: PW,
+          stdin: "v",
+        },
+      );
       expect(set.code).toBe(0);
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       expect(ls.stdout).toBe("supabase/acme  [postgres]  DB_URL\n");
     });
   });
 
   it("--schema with an empty value is rejected (exit 1, usage on stderr)", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set", "openai/dev", "K", "--schema", ""], {
+      const set = await runLockit(home, ["set", "openai/dev", "K", "--schema", ""], {
         passphrase: PW,
         stdin: "v",
       });
@@ -77,7 +81,7 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("--schema with no following value is rejected (exit 1)", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set", "openai/dev", "K", "--schema"], {
+      const set = await runLockit(home, ["set", "openai/dev", "K", "--schema"], {
         passphrase: PW,
         stdin: "v",
       });
@@ -88,7 +92,7 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("--file marks the field as file type (shown via the confirmation line)", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set", "openai/dev", "TOKEN", "--file"], {
+      const set = await runLockit(home, ["set", "openai/dev", "TOKEN", "--file"], {
         passphrase: PW,
         stdin: "filevalue",
       });
@@ -99,11 +103,17 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("stores multiple fields on one secret (multi-field)", async () => {
     await withSandbox(async (home) => {
-      const a = await runVeyl(home, ["set", "openai/dev", "ALPHA"], { passphrase: PW, stdin: "a" });
-      const b = await runVeyl(home, ["set", "openai/dev", "BRAVO"], { passphrase: PW, stdin: "b" });
+      const a = await runLockit(home, ["set", "openai/dev", "ALPHA"], {
+        passphrase: PW,
+        stdin: "a",
+      });
+      const b = await runLockit(home, ["set", "openai/dev", "BRAVO"], {
+        passphrase: PW,
+        stdin: "b",
+      });
       expect(a.code).toBe(0);
       expect(b.code).toBe(0);
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       expect(ls.stdout).toBe("openai/dev  [openai]  ALPHA,BRAVO\n");
     });
   });
@@ -112,7 +122,7 @@ describe("lockit set (e2e, real binary)", () => {
     await withSandbox(async (home) => {
       // Empty passphrase exercises the same 'not set' guard, deterministically,
       // independent of whatever the host env may carry.
-      const set = await runVeyl(home, ["set", "openai/dev", "K"], {
+      const set = await runLockit(home, ["set", "openai/dev", "K"], {
         stdin: "v",
         env: { LOCKIT_PASSPHRASE: "" },
       });
@@ -124,7 +134,7 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("usage error when slug and key are missing (exit 1)", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set"], { passphrase: PW, stdin: "v" });
+      const set = await runLockit(home, ["set"], { passphrase: PW, stdin: "v" });
       expect(set.code).toBe(1);
       expect(set.stderr).toContain("usage: lockit set <slug> <KEY>");
     });
@@ -132,7 +142,7 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("usage error when only the slug is given (exit 1)", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set", "openai/dev"], { passphrase: PW, stdin: "v" });
+      const set = await runLockit(home, ["set", "openai/dev"], { passphrase: PW, stdin: "v" });
       expect(set.code).toBe(1);
       expect(set.stderr).toContain("usage: lockit set <slug> <KEY>");
     });
@@ -140,7 +150,7 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("rejects an invalid slug (uppercase) with exit 1; output is value-free", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set", "OpenAI/dev", "K"], {
+      const set = await runLockit(home, ["set", "OpenAI/dev", "K"], {
         passphrase: PW,
         stdin: "sk-secret-leak-check",
       });
@@ -152,7 +162,7 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("rejects an invalid field key (leading digit) with exit 1", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set", "openai/dev", "1BADKEY"], {
+      const set = await runLockit(home, ["set", "openai/dev", "1BADKEY"], {
         passphrase: PW,
         stdin: "v",
       });
@@ -164,7 +174,7 @@ describe("lockit set (e2e, real binary)", () => {
   it("writes no plaintext to disk and creates the store at 0600 under $LOCKIT_HOME", async () => {
     await withSandbox(async (home) => {
       const secret = "sk-on-disk-PLAINTEXT-CHECK";
-      const set = await runVeyl(home, ["set", "openai/dev", "OPENAI_API_KEY"], {
+      const set = await runLockit(home, ["set", "openai/dev", "OPENAI_API_KEY"], {
         passphrase: PW,
         stdin: secret,
       });
@@ -185,10 +195,10 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("a wrong passphrase refuses to decrypt the store later", async () => {
     await withSandbox(async (home) => {
-      const set = await runVeyl(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "v" });
+      const set = await runLockit(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "v" });
       expect(set.code).toBe(0);
 
-      const ls = await runVeyl(home, ["ls"], { passphrase: "the-WRONG-passphrase" });
+      const ls = await runLockit(home, ["ls"], { passphrase: "the-WRONG-passphrase" });
       expect(ls.code).toBe(1);
       expect(ls.stderr).toContain("wrong passphrase or corrupted");
       expect(ls.stdout).toBe("");
@@ -197,13 +207,13 @@ describe("lockit set (e2e, real binary)", () => {
 
   it("upsert replaces a field value without duplicating it", async () => {
     await withSandbox(async (home) => {
-      await runVeyl(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "first" });
-      await runVeyl(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "second" });
-      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
+      await runLockit(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "first" });
+      await runLockit(home, ["set", "openai/dev", "K"], { passphrase: PW, stdin: "second" });
+      const ls = await runLockit(home, ["ls"], { passphrase: PW });
       // Still a single comma-free key (no duplicate "K,K").
       expect(ls.stdout).toBe("openai/dev  [openai]  K\n");
 
-      const run = await runVeyl(
+      const run = await runLockit(
         home,
         [
           "run",

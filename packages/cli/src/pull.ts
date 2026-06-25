@@ -23,9 +23,15 @@ function parsePullArgs(argv: string[]): PullArgs {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i] ?? "";
     if (a === "--force") args.force = true;
-    else if (a === "--all") { const v = argv[i + 1]; if (v !== undefined) args.allBundle = v; i++; }
-    else if (a === "--out") { const v = argv[i + 1]; if (v !== undefined) args.out = v; i++; }
-    else args.names.push(a);
+    else if (a === "--all") {
+      const v = argv[i + 1];
+      if (v !== undefined) args.allBundle = v;
+      i++;
+    } else if (a === "--out") {
+      const v = argv[i + 1];
+      if (v !== undefined) args.out = v;
+      i++;
+    } else args.names.push(a);
   }
   return args;
 }
@@ -45,7 +51,9 @@ function targetFile(out: string | undefined): { path: string; isNew: boolean } {
 export async function cmdPull(io: Io): Promise<number> {
   const args = parsePullArgs(io.argv);
   if (args.names.length === 0 && args.allBundle === undefined) {
-    io.err("usage: lockit pull <VAR...> | <bundle#VAR> | --all <bundle> [--out <file>] [--force]\n");
+    io.err(
+      "usage: lockit pull <VAR...> | <bundle#VAR> | --all <bundle> [--out <file>] [--force]\n",
+    );
     return 1;
   }
 
@@ -75,7 +83,10 @@ export async function cmdPull(io: Io): Promise<number> {
   }
   for (const name of args.names) {
     const r = resolveVar(store, name);
-    if (r.status === "none") { io.err(`not found: ${name}\n`); return 1; }
+    if (r.status === "none") {
+      io.err(`not found: ${name}\n`);
+      return 1;
+    }
     if (r.status === "ambiguous") {
       io.err(`AMBIGUOUS: ${name} is in ${r.bundles.join(", ")}; qualify as <bundle>#${name}\n`);
       return 1;

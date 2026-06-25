@@ -23,15 +23,27 @@ export function ttyAuthorize(): Promise<string | null> {
     const input = new tty.ReadStream(fd);
     const output = new tty.WriteStream(fd);
     output.write("lockit: enter passphrase to authorize pull: ");
-    try { input.setRawMode(true); } catch { /* best effort */ }
+    try {
+      input.setRawMode(true);
+    } catch {
+      /* best effort */
+    }
 
     let buf = "";
     const finish = (val: string | null) => {
-      try { input.setRawMode(false); } catch { /* ignore */ }
+      try {
+        input.setRawMode(false);
+      } catch {
+        /* ignore */
+      }
       output.write("\n");
       input.destroy();
       output.destroy();
-      try { closeSync(fd); } catch { /* streams may already own/close fd */ }
+      try {
+        closeSync(fd);
+      } catch {
+        /* streams may already own/close fd */
+      }
       resolve(val);
     };
 
@@ -39,7 +51,10 @@ export function ttyAuthorize(): Promise<string | null> {
       for (const ch of chunk.toString("utf8")) {
         if (ch === "\r" || ch === "\n") return finish(buf);
         if (ch === "") return finish(null); // Ctrl-C
-        if (ch === "") { buf = buf.slice(0, -1); continue; } // backspace
+        if (ch === "") {
+          buf = buf.slice(0, -1);
+          continue;
+        } // backspace
         buf += ch;
       }
     });

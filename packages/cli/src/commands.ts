@@ -106,7 +106,8 @@ export async function cmdLs(io: Io): Promise<number> {
   if (io.argv.includes("--vars")) {
     const rows: { key: string; slug: string; hasValue: boolean }[] = [];
     for (const secret of listSecrets(store)) {
-      for (const f of secret.fields) rows.push({ key: f.key, slug: secret.slug, hasValue: f.hasValue });
+      for (const f of secret.fields)
+        rows.push({ key: f.key, slug: secret.slug, hasValue: f.hasValue });
     }
     rows.sort((a, b) => a.key.localeCompare(b.key) || a.slug.localeCompare(b.slug));
     for (const r of rows) io.out(`${r.key}  [${r.slug}]  ${r.hasValue ? "hasValue" : "empty"}\n`);
