@@ -26,11 +26,16 @@ never hits your history or a committed file), and keeps agent-facing output
 ```sh
 npm i -g @lockit/cli                              # provides the `lockit` command
 
+# global store
 printf 'sk-live-abc123' | lockit set stripe/prod STRIPE_KEY   # value via stdin only
 lockit ls --vars                                  # see what you have, value-free
-lockit run stripe/prod -- node server.js          # injected as env, masked in output
-lockit import .env --as myapp/dev                 # migrate an existing .env
-lockit pull STRIPE_KEY --yes                       # write a value back into ./.env
+
+# per-project keys (same name can differ per project)
+lockit init                                       # mark this dir a project
+printf 'postgres://a' | lockit set DATABASE_URL   # project-local key
+lockit admit stripe/prod#STRIPE_KEY               # admit a shared secret (prompts to confirm)
+lockit run -- npm start                           # inject THIS project's admitted keys, masked
+
 lockit install                                    # shell tab-completion
 lockit help                                        # full reference (agents: read this)
 ```
@@ -47,25 +52,28 @@ shown on the [npm page](https://www.npmjs.com/package/@lockit/cli)).
   is three fields under one slug.
 - **Global store** — where secrets live, keyed by slug, encrypted at rest in
   `~/.lockit`.
-- **Admission** _(planned)_ — bringing a secret into a project's sandbox, gated by
-  human presence auth (Touch ID / OS password). An agent can _request_ admission
-  but can't satisfy the gate itself.
+- **Project** — a directory with a `.lockit/`. It tracks its own keys (so the same
+  name can hold different values per project) and can only use keys **admitted** to
+  it. The binding map (`.lockit/vault.json`) is value-free and committable.
+- **Admission** — binding an existing/shared secret into a project, gated by a human
+  presence confirmation (a terminal prompt now; Touch ID in `0.5.0`). An agent can
+  _request_ admission but can't satisfy the gate itself.
 
 ## Status
 
 Early (`0.x`), under active development.
 
-**Works today:** encrypted local store; `set` / `ls` / `run` / `import` / `pull`;
-shell tab-completion (`install` / `completion`); `help`; zero-setup keyfile so no
-passphrase needs exporting.
+**Works today (`0.4.0`):** encrypted local store; **per-project keys + admission +
+sandbox** (`init` / `set` / `admit` / `status` / `run`); `import` / `pull`; shell
+tab-completion (`install` / `completion`); `help`; a Claude Code plugin in
+[`plugin/`](./plugin); zero-setup keyfile so no passphrase needs exporting.
 
-**Next milestone — the agent-safety gate:** per-project **admission** so an agent
-must get your approval before a _new_ key can be used in a project (approved keys
-are then agent-first), with the store key moved behind **Touch ID / OS auth** so
-the gate has real cryptographic teeth (see [ADR-0007](./docs/adr/0007-project-world-sandbox-human-gated-admission.md)
-and [ADR-0009](./docs/adr/0009-local-unlock-model.md)). Until then, the auto keyfile
-sits on disk and a local process running as you can decrypt the store — documented,
-not hidden.
+**Next milestone (`0.5.0`) — cryptographic teeth:** move the store key behind
+**Touch ID / Secure Enclave** so the admission gate isn't just CLI-enforced (see
+[ADR-0007](./docs/adr/0007-project-world-sandbox-human-gated-admission.md) and
+[ADR-0009](./docs/adr/0009-local-unlock-model.md)). Until then the auto keyfile sits
+on disk, so a process running as you can read `~/.lockit` or hand-edit a project
+vault and bypass the gate — documented, not hidden.
 
 ## Packages
 

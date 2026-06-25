@@ -9,10 +9,11 @@ back into a `.env` when you need to. Agents and humans use the same commands, an
 agent-facing output is **value-free** — it shows names and structure, never a
 secret value.
 
-> Status: early (`0.x`). Today it's a usable encrypted local locker. The
-> human-gated **admission** model (an agent must get your approval before a new
-> key can be used in a project, backed by Touch ID) is in progress — see
-> [Roadmap](#roadmap). Honest limits are documented below, not hidden.
+> Status: early (`0.x`). It's a usable encrypted local locker **with per-project
+> keys and human-gated admission** (`0.4.0`): a project can only use keys you've
+> admitted to it, and admitting a stored secret requires a confirmation an agent
+> can't satisfy. The presence gate is a terminal prompt today; **Touch ID** lands
+> next (`0.5.0`). Honest limits are documented below, not hidden.
 
 ## Install
 
@@ -49,27 +50,65 @@ lockit run stripe/prod -- sh -c 'echo "key is $STRIPE_KEY"'
 #   key is ***          ← the child saw the real value; your terminal didn't
 ```
 
+## Per-project keys + admission
+
+A **project** is a directory with a `.lockit/` (run `lockit init`). Each project
+tracks its own keys, so **the same name can hold different values in different
+projects**, and a project can only use keys **admitted** to it.
+
+```sh
+cd ~/code/app-a && lockit init
+printf 'postgres://a' | lockit set DATABASE_URL    # a PROJECT-LOCAL key, auto-bound
+
+cd ~/code/app-b && lockit init
+printf 'postgres://b' | lockit set DATABASE_URL    # same name, DIFFERENT value
+
+lockit status                 # this project's keys, value-free
+lockit run -- npm start       # injects THIS project's DATABASE_URL
+```
+
+**Admitting a shared secret** (reuse one stored secret across projects) is the
+gated action — it prompts on the terminal, which an agent driving stdin can't
+answer:
+
+```sh
+printf 'sk-live-abc' | lockit set openai/personal OPENAI_API_KEY   # once, globally
+cd ~/code/app-a
+lockit admit openai/personal           # prompts: Allow ... for this project? [y/N]
+lockit run -- npm start                # OPENAI_API_KEY now injected here
+```
+
+Inside a project the sandbox is strict: `run -- <cmd>` and `pull <NAME>` only use
+**admitted** keys; the global `run <slug>` / `pull --all` are refused — admit
+first. The `name` lives per-project (in committable `.lockit/vault.json`,
+value-free); the value lives once in the global store.
+
 ## Migrate an existing `.env`
 
 ```sh
 lockit import .env --as myapp/dev      # store every var; the file is left untouched
-lockit run myapp/dev -- npm start      # run with all of them injected
+lockit run myapp/dev -- npm start      # run with all of them injected (global secret)
 # or write specific values back into a .env:
 lockit pull STRIPE_KEY DATABASE_URL    # asks to confirm first; --yes to skip
 ```
 
 ## Commands
 
-| Command                                                                         | What it does                                                                |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `set <slug> <KEY> [--schema <s>] [--file]`                                      | Store a field. VALUE is read from **stdin only**.                           |
-| `ls [--vars]`                                                                   | List secrets, value-free. `--vars` lists individual variables.              |
-| `run <slug> [--] <cmd> [args...]`                                               | Run `<cmd>` with the secret's env vars injected, masked in output.          |
-| `import [path] [--as <slug>]`                                                   | Import a `.env` into the store (default `./.env`). Doesn't modify the file. |
-| `pull <VAR...> \| <bundle#VAR> \| --all <bundle> [--out <f>] [--force] [--yes]` | Write real values into a `.env`. Confirms first.                            |
-| `install [zsh\|bash]`                                                           | Install shell tab-completion (no rc edit on Homebrew zsh).                  |
-| `completion <zsh\|bash>`                                                        | Print the completion script (for `eval` or Homebrew).                       |
-| `help`, `--help`, `-h`                                                          | Show help.                                                                  |
+| Command                                                                         | What it does                                                                  |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `init`                                                                          | Mark the current directory a project (creates `.lockit/`).                    |
+| `set <NAME>`                                                                    | In a project: create a **project-local** key (value via stdin) + bind it.     |
+| `set <slug> <KEY> [--schema <s>] [--file]`                                      | Store a field in the **global** store. VALUE is read from **stdin only**.     |
+| `admit <slug\|slug#field> [--as NAME]`                                          | Bind an existing/shared secret into this project. **Prompts to confirm.**     |
+| `status`                                                                        | This project's admitted keys, value-free.                                     |
+| `ls [--vars]`                                                                   | List global secrets, value-free. `--vars` lists individual variables.         |
+| `run -- <cmd> [args...]`                                                        | In a project: run `<cmd>` with the project's admitted keys injected, masked.  |
+| `run <slug> [--] <cmd> [args...]`                                               | Global (outside a project): inject one secret's fields.                       |
+| `import [path] [--as <slug>]`                                                   | Import a `.env` into the global store (default `./.env`). Doesn't touch file. |
+| `pull <VAR...> \| <bundle#VAR> \| --all <bundle> [--out <f>] [--force] [--yes]` | Write real values into a `.env`. Confirms first. Sandboxed inside a project.  |
+| `install [zsh\|bash]`                                                           | Install shell tab-completion (no rc edit on Homebrew zsh).                    |
+| `completion <zsh\|bash>`                                                        | Print the completion script (for `eval` or Homebrew).                         |
+| `help`, `--help`, `-h`                                                          | Show help.                                                                    |
 
 Run `lockit help` for the full reference.
 
@@ -83,13 +122,18 @@ lockit pull nvi⇥        # completes to NVIDIA_API_KEY, etc.
 
 ## For AI agents
 
+There's a **Claude Code plugin** in [`plugin/`](https://www.npmjs.com/package/@lockit/cli)
+(in the repo): a skill teaching the agent-safe workflow plus a hook that warns on
+`pull` egress. The rules:
+
 - `lockit help` (or `--help`) prints the full command reference — read it first.
-- `lockit ls` / `lockit ls --vars` is **value-free**: it tells you which secrets
-  and variables exist without revealing any value.
-- Use `lockit run <slug> -- <cmd>` to _use_ a secret without seeing it — the value
-  is injected into the child process, never printed.
-- `lockit pull --yes` writes real values into a `.env` non-interactively (this
-  does put plaintext on disk; prefer `run` when you don't need a file).
+- `lockit status` (project) and `lockit ls` / `ls --vars` (global) are
+  **value-free**: which keys exist, never a value.
+- Use `lockit run -- <cmd>` to _use_ a secret without seeing it — injected into the
+  child process, masked, never printed.
+- You can **request** admission (`lockit admit ...`), but only a human can approve
+  it on the terminal. Inside a project, only admitted keys work.
+- Avoid `lockit pull` — it writes plaintext to disk. Prefer `run`.
 
 ## Configuration
 
@@ -105,10 +149,13 @@ lockit pull nvi⇥        # completes to NVIDIA_API_KEY, etc.
   machine keyfile). The store and key files are `0600`.
 - `set` reads the value from **stdin**, never argv, so it isn't in `ps` or shell
   history. `run` masks injected values in the child's output.
-- **The auto keyfile lives on disk**, so any process running as you (including an
-  AI agent) can currently decrypt the store. The human-gated admission model that
-  closes this — moving the key behind Touch ID / OS auth so an agent can't decrypt
-  unapproved keys without your approval — is the next milestone.
+- **The admission gate is enforced by the CLI**, not yet by crypto: in `0.4.0` the
+  store key still lives on disk (the auto keyfile), so a process running as you
+  could read `~/.lockit` directly or hand-edit a project's `.lockit/vault.json` and
+  bypass the gate. The terminal prompt is real against an agent that can't answer
+  `/dev/tty`; the **cryptographic teeth** — moving the key behind **Touch ID /
+  Secure Enclave** so an agent literally can't decrypt an unadmitted key — land in
+  `0.5.0`.
 - A child process holds the real value while using it, so a command you run can
   still leak it. Containment is not omnipotence.
 - **No recovery.** If you set `LOCKIT_PASSPHRASE` and lose it, the store is
@@ -116,10 +163,12 @@ lockit pull nvi⇥        # completes to NVIDIA_API_KEY, etc.
 
 ## Roadmap
 
-- **Now:** encrypted local locker — `set` / `ls` / `run` / `import` / `pull` /
-  shell completion, zero-setup keyfile.
-- **Next:** per-project **admission** — an agent must get your approval (Touch ID /
-  OS password) before a new key can be used in a project; approved keys are then
-  agent-first. Key moves behind the OS auth so the gate has real teeth.
+- **Now (`0.4.0`):** encrypted local store; **per-project keys + admission +
+  sandbox**; `init` / `set` / `admit` / `status` / `run` / `import` / `pull` / shell
+  completion; the Claude Code plugin. Zero-setup keyfile.
+- **Next (`0.5.0`):** **Touch ID / Secure Enclave** — move the store key behind OS
+  auth so the admission gate is cryptographic, not just enforced by the CLI.
+- **Later:** end-to-end sharing across your devices and team; optional self-hosted
+  ciphertext-only sync server.
 
 Apache-2.0.
