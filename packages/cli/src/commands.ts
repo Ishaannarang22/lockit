@@ -20,6 +20,9 @@ export interface Io {
   env: NodeJS.ProcessEnv;
   out: (s: string) => void;
   err: (s: string) => void;
+  /** Human authorization for plaintext egress (pull). Resolves to the
+   *  passphrase typed on /dev/tty, or null if denied / unavailable. */
+  authorize?: () => Promise<string | null>;
 }
 
 /** Pull the passphrase from the environment, or signal a value-free failure.
@@ -99,6 +102,17 @@ export async function cmdLs(io: Io): Promise<number> {
   if (passphrase === undefined) return 1;
 
   const store = await loadStore(passphrase, storePath());
+
+  if (io.argv.includes("--vars")) {
+    const rows: { key: string; slug: string; hasValue: boolean }[] = [];
+    for (const secret of listSecrets(store)) {
+      for (const f of secret.fields) rows.push({ key: f.key, slug: secret.slug, hasValue: f.hasValue });
+    }
+    rows.sort((a, b) => a.key.localeCompare(b.key) || a.slug.localeCompare(b.slug));
+    for (const r of rows) io.out(`${r.key}  [${r.slug}]  ${r.hasValue ? "hasValue" : "empty"}\n`);
+    return 0;
+  }
+
   for (const secret of listSecrets(store)) {
     const keys = secret.fields.map((f) => f.key).join(",");
     io.out(`${secret.slug}  [${secret.schema}]  ${keys}\n`);

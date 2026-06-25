@@ -442,6 +442,19 @@ describe("lockit cli commands", () => {
     });
   });
 
+  describe("cmdLs --vars — value-free variable discovery", () => {
+    it("lists each variable with its bundle, value-free and sorted", async () => {
+      await run(cmdSet, ["app/dev", "FOO"], `${SECRET}\n`);
+      await run(cmdSet, ["app/dev", "BAR"], "bar-value\n");
+      const ls = await run(cmdLs, ["--vars"]);
+      expect(ls.code).toBe(0);
+      const lines = ls.out.trim().split("\n");
+      expect(lines[0]).toMatch(/^BAR {2}\[app\/dev] {2}hasValue$/);
+      expect(lines[1]).toMatch(/^FOO {2}\[app\/dev] {2}hasValue$/);
+      expect(ls.out).not.toContain(SECRET);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // cmdRun: injection + masking (drives a real node child)
   // ---------------------------------------------------------------------------
