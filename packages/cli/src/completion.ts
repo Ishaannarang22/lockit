@@ -38,10 +38,14 @@ export async function cmdCompleteList(io: Io): Promise<number> {
 // function caches the value-free name list in a shell variable for 60s, so
 // `lockit` is invoked at most once per minute per shell and the shell's native
 // matcher does the per-keystroke filtering.
+// Dual-mode: starts with `#compdef lockit` so it works as an autoloaded file
+// dropped into $fpath (what `lockit install` and Homebrew do), and the
+// funcstack guard makes the same text also work when sourced via
+// `eval "$(lockit completion zsh)"` — sourced, it just registers with compdef.
 const ZSH_SCRIPT = [
-  '# lockit zsh completion. Add to ~/.zshrc:  eval "$(lockit completion zsh)"',
+  "#compdef lockit",
   "_lockit() {",
-  "  local -a subcmds; subcmds=(set ls run import pull completion)",
+  "  local -a subcmds; subcmds=(set ls run import pull completion install)",
   "  if (( CURRENT == 2 )); then compadd -- $subcmds; return; fi",
   "  case ${words[2]} in",
   "    pull)",
@@ -54,16 +58,20 @@ const ZSH_SCRIPT = [
   "      ;;",
   "  esac",
   "}",
-  "compdef _lockit lockit",
+  'if [ "$funcstack[1]" = "_lockit" ]; then',
+  '  _lockit "$@"',
+  "else",
+  "  compdef _lockit lockit",
+  "fi",
   "",
 ].join("\n");
 
 const BASH_SCRIPT = [
-  '# lockit bash completion. Add to ~/.bashrc:  eval "$(lockit completion bash)"',
+  '# lockit bash completion. eval "$(lockit completion bash)" or drop in bash_completion.d',
   "_lockit() {",
   "  local cur=${COMP_WORDS[COMP_CWORD]}",
   "  if [[ $COMP_CWORD -eq 1 ]]; then",
-  '    COMPREPLY=( $(compgen -W "set ls run import pull completion" -- "$cur") )',
+  '    COMPREPLY=( $(compgen -W "set ls run import pull completion install" -- "$cur") )',
   "    return",
   "  fi",
   "  if [[ ${COMP_WORDS[1]} == pull ]]; then",
@@ -79,8 +87,18 @@ const BASH_SCRIPT = [
   "",
 ].join("\n");
 
-/** `lockit completion <zsh|bash>` — print the shell completion script to stdout,
- *  with the in-shell 60s name cache baked in. `eval "$(lockit completion zsh)"`. */
+/** The zsh completion script (dual-mode: autoloadable file or `eval`-able). */
+export function zshCompletionScript(): string {
+  return ZSH_SCRIPT;
+}
+
+/** The bash completion script (works sourced or in bash_completion.d). */
+export function bashCompletionScript(): string {
+  return BASH_SCRIPT;
+}
+
+/** `lockit completion <zsh|bash>` — print the shell completion script to stdout.
+ *  Used by `eval "$(lockit completion zsh)"` and Homebrew's completion install. */
 export async function cmdCompletion(io: Io): Promise<number> {
   const shell = io.argv[0];
   if (shell === "zsh") {
