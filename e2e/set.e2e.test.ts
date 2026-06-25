@@ -118,17 +118,14 @@ describe("lockit set (e2e, real binary)", () => {
     });
   });
 
-  it("missing LOCKIT_PASSPHRASE is a clear error with exit 1", async () => {
+  it("works with no LOCKIT_PASSPHRASE (auto keyfile), exit 0", async () => {
     await withSandbox(async (home) => {
-      // Empty passphrase exercises the same 'not set' guard, deterministically,
-      // independent of whatever the host env may carry.
       const set = await runLockit(home, ["set", "openai/dev", "K"], {
         stdin: "v",
         env: { LOCKIT_PASSPHRASE: "" },
       });
-      expect(set.code).toBe(1);
-      expect(set.stderr).toContain("LOCKIT_PASSPHRASE is not set");
-      expect(set.stdout).toBe("");
+      expect(set.code).toBe(0);
+      expect(set.stderr).toBe("");
     });
   });
 

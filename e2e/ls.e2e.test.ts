@@ -79,12 +79,12 @@ describe("lockit ls (e2e, real binary)", () => {
     });
   });
 
-  it("missing LOCKIT_PASSPHRASE is a clear error with exit 1", async () => {
+  it("works with no LOCKIT_PASSPHRASE (auto keyfile): empty store prints nothing, exit 0", async () => {
     await withSandbox(async (home) => {
       const ls = await runLockit(home, ["ls"], { env: { LOCKIT_PASSPHRASE: "" } });
-      expect(ls.code).toBe(1);
-      expect(ls.stderr).toContain("LOCKIT_PASSPHRASE is not set");
+      expect(ls.code).toBe(0);
       expect(ls.stdout).toBe("");
+      expect(ls.stderr).toBe("");
     });
   });
 

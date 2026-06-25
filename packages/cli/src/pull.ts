@@ -9,20 +9,22 @@ import {
   storePath,
   type DotenvEntry,
 } from "@lockit/core";
-import type { Io } from "./commands.js";
+import { resolveKey, type Io } from "./commands.js";
 
 interface PullArgs {
   names: string[];
   allBundle?: string;
   out?: string;
   force: boolean;
+  yes: boolean;
 }
 
 function parsePullArgs(argv: string[]): PullArgs {
-  const args: PullArgs = { names: [], force: false };
+  const args: PullArgs = { names: [], force: false, yes: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i] ?? "";
     if (a === "--force") args.force = true;
+    else if (a === "--yes" || a === "-y") args.yes = true;
     else if (a === "--all") {
       const v = argv[i + 1];
       if (v !== undefined) args.allBundle = v;
@@ -52,23 +54,24 @@ export async function cmdPull(io: Io): Promise<number> {
   const args = parsePullArgs(io.argv);
   if (args.names.length === 0 && args.allBundle === undefined) {
     io.err(
-      "usage: lockit pull <VAR...> | <bundle#VAR> | --all <bundle> [--out <file>] [--force]\n",
+      "usage: lockit pull <VAR...> | <bundle#VAR> | --all <bundle> [--out <file>] [--force] [--yes]\n",
     );
     return 1;
   }
 
   // Human gate FIRST — nothing is read or written until a human authorizes.
-  const passphrase = io.authorize ? await io.authorize() : null;
-  if (passphrase === null) {
+  // --yes (or no authorizer wired) skips the prompt for scripts/agents.
+  const authorized = args.yes || (io.authorize ? await io.authorize() : false);
+  if (!authorized) {
     io.err("authorization denied or unavailable; nothing written\n");
     return 1;
   }
 
   let store;
   try {
-    store = await loadStore(passphrase, storePath());
+    store = await loadStore(resolveKey(io), storePath());
   } catch {
-    io.err("authorization failed: passphrase did not decrypt the store\n");
+    io.err("could not open the store; nothing written\n");
     return 1;
   }
 

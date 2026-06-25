@@ -333,24 +333,16 @@ describe("lockit cli commands", () => {
   // ---------------------------------------------------------------------------
   // cmdSet: passphrase handling
   // ---------------------------------------------------------------------------
-  describe("cmdSet — passphrase handling", () => {
-    it("returns 1 with a clear error when LOCKIT_PASSPHRASE is unset", async () => {
+  describe("cmdSet — key handling", () => {
+    it("works with no LOCKIT_PASSPHRASE, using the auto-managed keyfile", async () => {
       const env = { ...process.env };
       delete env.LOCKIT_PASSPHRASE;
       const set = await run(cmdSet, ["openai/dev", "K"], "v\n", env);
-      expect(set.code).toBe(1);
-      expect(set.err).toContain("LOCKIT_PASSPHRASE is not set");
-      expect(set.out).toBe("");
+      expect(set.code).toBe(0);
+      expect(set.err).toBe("");
     });
 
-    it("rejects an empty LOCKIT_PASSPHRASE", async () => {
-      const env = { ...process.env, LOCKIT_PASSPHRASE: "" };
-      const set = await run(cmdSet, ["openai/dev", "K"], "v\n", env);
-      expect(set.code).toBe(1);
-      expect(set.err).toContain("LOCKIT_PASSPHRASE is not set");
-    });
-
-    it("does not restrict passphrase length (a long passphrase works)", async () => {
+    it("honors LOCKIT_PASSPHRASE as an override when set", async () => {
       const env = { ...process.env, LOCKIT_PASSPHRASE: "x".repeat(512) };
       const set = await run(cmdSet, ["openai/dev", "K"], "v\n", env);
       expect(set.code).toBe(0);
@@ -411,22 +403,7 @@ describe("lockit cli commands", () => {
   // ---------------------------------------------------------------------------
   // cmdLs: passphrase / error handling
   // ---------------------------------------------------------------------------
-  describe("cmdLs — passphrase and error handling", () => {
-    it("returns 1 when LOCKIT_PASSPHRASE is unset", async () => {
-      const env = { ...process.env };
-      delete env.LOCKIT_PASSPHRASE;
-      const ls = await run(cmdLs, [], "", env);
-      expect(ls.code).toBe(1);
-      expect(ls.err).toContain("LOCKIT_PASSPHRASE is not set");
-    });
-
-    it("rejects an empty LOCKIT_PASSPHRASE", async () => {
-      const env = { ...process.env, LOCKIT_PASSPHRASE: "" };
-      const ls = await run(cmdLs, [], "", env);
-      expect(ls.code).toBe(1);
-      expect(ls.err).toContain("LOCKIT_PASSPHRASE is not set");
-    });
-
+  describe("cmdLs — key and error handling", () => {
     it("rejects a wrong passphrase with a clear error (rejected promise -> caught by index)", async () => {
       await run(cmdSet, ["openai/dev", "K"], `${SECRET}\n`);
       const env = { ...process.env, LOCKIT_PASSPHRASE: "wrong-passphrase" };
@@ -683,14 +660,6 @@ describe("lockit cli commands", () => {
       expect(r.code).toBe(1);
       expect(r.err).toContain("failed to run this-binary-does-not-exist-kv-test");
       expect(r.err).not.toContain(SECRET);
-    });
-
-    it("returns 1 when LOCKIT_PASSPHRASE is unset (before any spawn)", async () => {
-      const env = { ...process.env };
-      delete env.LOCKIT_PASSPHRASE;
-      const r = await run(cmdRun, ["openai/dev", "node", "-e", ""], "", env);
-      expect(r.code).toBe(1);
-      expect(r.err).toContain("LOCKIT_PASSPHRASE is not set");
     });
   });
 

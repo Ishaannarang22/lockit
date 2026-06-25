@@ -87,12 +87,18 @@ describe("cmdCompleteList", () => {
     expect(io.stdout).not.toContain("secret-xyz");
   });
 
-  it("is silent (no output, exit 0) when LOCKIT_PASSPHRASE is unset", async () => {
+  it("lists via the keyfile with no LOCKIT_PASSPHRASE set", async () => {
+    const set = makeIo(["nvidia/dev", "NVIDIA_API_KEY"], home);
+    (set as { stdin: string }).stdin = "secret-xyz";
+    delete set.env.LOCKIT_PASSPHRASE;
+    delete process.env.LOCKIT_PASSPHRASE; // store sealed with the auto keyfile
+    await cmdSet(set);
+
     const io = makeIo([], home);
     delete io.env.LOCKIT_PASSPHRASE;
     expect(await cmdCompleteList(io)).toBe(0);
-    expect(io.stdout).toBe("");
-    expect(io.stderr).toBe("");
+    expect(io.stdout).toContain("NVIDIA_API_KEY");
+    expect(io.stdout).not.toContain("secret-xyz");
   });
 });
 

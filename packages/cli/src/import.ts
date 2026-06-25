@@ -8,7 +8,7 @@ import {
   storePath,
   upsertField,
 } from "@lockit/core";
-import type { Io } from "./commands.js";
+import { resolveKey, type Io } from "./commands.js";
 
 /** Turn an arbitrary directory name into a valid lowercase slug segment. */
 function slugifyDir(name: string): string {
@@ -19,19 +19,9 @@ function slugifyDir(name: string): string {
   return s.length > 0 ? s : "imported";
 }
 
-function passphraseOrError(io: Io): string | undefined {
-  const passphrase = io.env.LOCKIT_PASSPHRASE;
-  if (passphrase === undefined || passphrase.length === 0) {
-    io.err("LOCKIT_PASSPHRASE is not set\n");
-    return undefined;
-  }
-  return passphrase;
-}
-
 /** `lockit import [path] [--as <slug>]` — read a .env into the encrypted store. */
 export async function cmdImport(io: Io): Promise<number> {
-  const passphrase = passphraseOrError(io);
-  if (passphrase === undefined) return 1;
+  const passphrase = resolveKey(io);
 
   let path: string | undefined;
   let slug: string | undefined;

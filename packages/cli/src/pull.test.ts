@@ -11,7 +11,7 @@ const PASS = "test-passphrase";
 function makeIo(
   argv: string[],
   home: string,
-  opts: { stdin?: string; authorize?: () => Promise<string | null> } = {},
+  opts: { stdin?: string; authorize?: () => Promise<boolean> } = {},
 ): Io & { stdout: string; stderr: string } {
   const io = {
     argv,
@@ -62,16 +62,23 @@ describe("cmdPull", () => {
 
   it("writes the real value into a new .env after authorization, at 0600", async () => {
     const out = join(dir, ".env");
-    const io = makeIo(["API_KEY", "--out", out], home, { authorize: async () => PASS });
+    const io = makeIo(["API_KEY", "--out", out], home, { authorize: async () => true });
     expect(await cmdPull(io)).toBe(0);
     expect(readFileSync(out, "utf8")).toContain("API_KEY=sk-live-123");
     expect(statSync(out).mode & 0o777).toBe(0o600);
     expect(io.stdout).not.toContain("sk-live-123");
   });
 
+  it("--yes skips the confirmation gate (no authorizer needed)", async () => {
+    const out = join(dir, ".env");
+    const io = makeIo(["API_KEY", "--out", out, "--yes"], home); // no authorize wired
+    expect(await cmdPull(io)).toBe(0);
+    expect(readFileSync(out, "utf8")).toContain("API_KEY=sk-live-123");
+  });
+
   it("writes nothing and exits 1 when authorization is denied", async () => {
     const out = join(dir, ".env");
-    const io = makeIo(["API_KEY", "--out", out], home, { authorize: async () => null });
+    const io = makeIo(["API_KEY", "--out", out], home, { authorize: async () => false });
     expect(await cmdPull(io)).toBe(1);
     expect(existsSync(out)).toBe(false);
     expect(io.stderr.toLowerCase()).toContain("authorization");
@@ -79,7 +86,7 @@ describe("cmdPull", () => {
 
   it("aborts on an unknown variable, writing nothing", async () => {
     const out = join(dir, ".env");
-    const io = makeIo(["NOPE", "--out", out], home, { authorize: async () => PASS });
+    const io = makeIo(["NOPE", "--out", out], home, { authorize: async () => true });
     expect(await cmdPull(io)).toBe(1);
     expect(io.stderr).toMatch(/not found/i);
     expect(existsSync(out)).toBe(false);
@@ -88,13 +95,13 @@ describe("cmdPull", () => {
   it("skips an existing key unless --force", async () => {
     const out = join(dir, ".env");
     writeFileSync(out, "API_KEY=old\n");
-    const io = makeIo(["API_KEY", "--out", out], home, { authorize: async () => PASS });
+    const io = makeIo(["API_KEY", "--out", out], home, { authorize: async () => true });
     expect(await cmdPull(io)).toBe(0);
     expect(readFileSync(out, "utf8")).toContain("API_KEY=old");
     expect(io.stdout).toMatch(/skipped 1/);
 
     const forced = makeIo(["API_KEY", "--out", out, "--force"], home, {
-      authorize: async () => PASS,
+      authorize: async () => true,
     });
     expect(await cmdPull(forced)).toBe(0);
     expect(readFileSync(out, "utf8")).toContain("API_KEY=sk-live-123");

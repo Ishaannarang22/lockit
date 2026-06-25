@@ -1,14 +1,15 @@
 import { openSync, closeSync } from "node:fs";
 import * as tty from "node:tty";
 
-/** Prompt the human on /dev/tty (echo off) for the passphrase that authorizes a
- *  pull. Resolves null if no controlling terminal is available or on Ctrl-C.
- *  An agent that drives the child's stdin cannot answer a /dev/tty prompt. */
-export function ttyAuthorize(): Promise<string | null> {
+/** Ask the human, on /dev/tty, to confirm a pull (y/N). Resolves false if no
+ *  controlling terminal is available or on anything but an explicit yes. An
+ *  agent that drives the child's stdin cannot answer a /dev/tty prompt, so it
+ *  cannot self-authorize. `LOCKIT_PULL_YES=1` bypasses the prompt. */
+export function ttyAuthorize(): Promise<boolean> {
   return new Promise((resolve) => {
     if (process.env.LOCKIT_PULL_YES === "1") {
-      process.stderr.write("warning: LOCKIT_PULL_YES=1 — pull authorization gate bypassed\n");
-      resolve(process.env.LOCKIT_PASSPHRASE ?? null);
+      process.stderr.write("warning: LOCKIT_PULL_YES=1 — pull confirmation skipped\n");
+      resolve(true);
       return;
     }
 
@@ -16,21 +17,20 @@ export function ttyAuthorize(): Promise<string | null> {
     try {
       fd = openSync("/dev/tty", "r+");
     } catch {
-      resolve(null);
+      resolve(false);
       return;
     }
 
     const input = new tty.ReadStream(fd);
     const output = new tty.WriteStream(fd);
-    output.write("lockit: enter passphrase to authorize pull: ");
+    output.write("lockit: write secret values to the env file? [y/N] ");
     try {
       input.setRawMode(true);
     } catch {
       /* best effort */
     }
 
-    let buf = "";
-    const finish = (val: string | null) => {
+    const finish = (ok: boolean) => {
       try {
         input.setRawMode(false);
       } catch {
@@ -44,19 +44,12 @@ export function ttyAuthorize(): Promise<string | null> {
       } catch {
         /* streams may already own/close fd */
       }
-      resolve(val);
+      resolve(ok);
     };
 
     input.on("data", (chunk: Buffer) => {
-      for (const ch of chunk.toString("utf8")) {
-        if (ch === "\r" || ch === "\n") return finish(buf);
-        if (ch === "") return finish(null); // Ctrl-C
-        if (ch === "") {
-          buf = buf.slice(0, -1);
-          continue;
-        } // backspace
-        buf += ch;
-      }
+      const ch = chunk.toString("utf8")[0] ?? "";
+      finish(ch === "y" || ch === "Y");
     });
   });
 }

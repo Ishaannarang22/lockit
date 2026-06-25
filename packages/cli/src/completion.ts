@@ -1,5 +1,5 @@
 import { listSecrets, loadStore, storePath, type StoreData } from "@lockit/core";
-import type { Io } from "./commands.js";
+import { resolveKey, type Io } from "./commands.js";
 
 /** Value-free completion candidates: every bare variable name, its qualified
  *  `bundle#KEY` form, and each bundle slug (for `--all`). Sorted + de-duplicated.
@@ -18,14 +18,11 @@ export function completionCandidates(store: StoreData): string[] {
 
 /** Hidden `lockit __complete-list` — print the value-free candidate list, one
  *  per line, for the shell completion function to cache and filter. Silent (no
- *  output, exit 0) when locked or unreadable, so Tab never errors into the prompt. */
+ *  output, exit 0) on any read error, so Tab never errors into the prompt. */
 export async function cmdCompleteList(io: Io): Promise<number> {
-  const passphrase = io.env.LOCKIT_PASSPHRASE;
-  if (passphrase === undefined || passphrase.length === 0) return 0;
-
   let store: StoreData;
   try {
-    store = await loadStore(passphrase, storePath());
+    store = await loadStore(resolveKey(io), storePath());
   } catch {
     return 0;
   }

@@ -5,8 +5,10 @@ import { cmdPull } from "./pull.js";
 import { ttyAuthorize } from "./authorize.js";
 import { cmdCompleteList, cmdCompletion } from "./completion.js";
 import { cmdInstall } from "./install.js";
+import { cmdHelp } from "./help.js";
 
-const USAGE = "usage: lockit <set|ls|run|import|pull|install|completion> [args...]\n";
+const USAGE =
+  "usage: lockit <set|ls|run|import|pull|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
 
 /** Read all of stdin to a string. Only `set` needs the value, so we read lazily. */
 async function readStdin(): Promise<string> {
@@ -27,6 +29,10 @@ async function main(): Promise<number> {
     process.stderr.write(s);
   };
 
+  if (command === undefined || command === "help" || command === "--help" || command === "-h") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err };
+    return await cmdHelp(io);
+  }
   if (command === "set") {
     const io: Io = { argv, stdin: await readStdin(), env: process.env, out, err };
     return await cmdSet(io);

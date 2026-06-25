@@ -257,13 +257,13 @@ describe("lockit run (e2e, real binary)", () => {
     });
   });
 
-  it("missing LOCKIT_PASSPHRASE is a clear error with exit 1 (no spawn)", async () => {
+  it("an unknown secret is a clear error with exit 1 (no spawn), no passphrase needed", async () => {
     await withSandbox(async (home) => {
       const run = await runLockit(home, ["run", "openai/dev", "node", "-e", ""], {
         env: { LOCKIT_PASSPHRASE: "" },
       });
       expect(run.code).toBe(1);
-      expect(run.stderr).toContain("LOCKIT_PASSPHRASE is not set");
+      expect(run.stderr).toContain("no secret: openai/dev");
     });
   });
 
@@ -306,16 +306,17 @@ describe("lockit entry point (e2e)", () => {
     await withSandbox(async (home) => {
       const r = await runLockit(home, ["frobnicate"], { passphrase: PW });
       expect(r.code).toBe(1);
-      expect(r.stderr).toContain("usage: lockit <set|ls|run|import|pull|install|completion>");
+      expect(r.stderr).toContain("usage: lockit <set|ls|run|import|pull|install|completion|help>");
       expect(r.stdout).toBe("");
     });
   });
 
-  it("no command at all exits 1 and prints usage", async () => {
+  it("no command at all prints help on stdout, exit 0", async () => {
     await withSandbox(async (home) => {
       const r = await runLockit(home, [], { passphrase: PW });
-      expect(r.code).toBe(1);
-      expect(r.stderr).toContain("usage: lockit <set|ls|run|import|pull|install|completion>");
+      expect(r.code).toBe(0);
+      expect(r.stdout).toContain("lockit — local-first secrets manager");
+      expect(r.stdout).toContain("COMMANDS");
     });
   });
 });

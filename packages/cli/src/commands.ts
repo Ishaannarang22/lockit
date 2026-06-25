@@ -11,6 +11,7 @@ import {
   upsertField,
 } from "@lockit/core";
 import type { FieldType } from "@lockit/core";
+import { loadOrCreateKey } from "./keyfile.js";
 
 /** The injected IO surface every handler talks to — no direct `process.std*`,
  *  so handlers stay pure-ish and unit-testable with a fake IO. */
@@ -20,20 +21,18 @@ export interface Io {
   env: NodeJS.ProcessEnv;
   out: (s: string) => void;
   err: (s: string) => void;
-  /** Human authorization for plaintext egress (pull). Resolves to the
-   *  passphrase typed on /dev/tty, or null if denied / unavailable. */
-  authorize?: () => Promise<string | null>;
+  /** Human authorization for plaintext egress (pull): true to proceed. The
+   *  real implementation prompts y/N on /dev/tty so an agent driving stdin
+   *  cannot self-authorize. */
+  authorize?: () => Promise<boolean>;
 }
 
-/** Pull the passphrase from the environment, or signal a value-free failure.
- *  Returns `undefined` after writing the error, so callers `return 1`. */
-function passphraseOrError(io: Io): string | undefined {
-  const passphrase = io.env.LOCKIT_PASSPHRASE;
-  if (passphrase === undefined || passphrase.length === 0) {
-    io.err("LOCKIT_PASSPHRASE is not set\n");
-    return undefined;
-  }
-  return passphrase;
+/** The store key: `LOCKIT_PASSPHRASE` if explicitly set (override), otherwise
+ *  the auto-managed machine-local keyfile. Never prompts; never fails. */
+export function resolveKey(io: Io): string {
+  const env = io.env.LOCKIT_PASSPHRASE;
+  if (env !== undefined && env.length > 0) return env;
+  return loadOrCreateKey();
 }
 
 /** Strip exactly one trailing newline ("\n" or "\r\n") so a piped value isn't
@@ -48,8 +47,7 @@ function trimOneTrailingNewline(value: string): string {
  *  The VALUE is read from stdin only — never from argv — so it never lands in
  *  process listings, shell history, or the args of a spawned process. */
 export async function cmdSet(io: Io): Promise<number> {
-  const passphrase = passphraseOrError(io);
-  if (passphrase === undefined) return 1;
+  const passphrase = resolveKey(io);
 
   const positional: string[] = [];
   let schema: string | undefined;
@@ -98,8 +96,7 @@ export async function cmdSet(io: Io): Promise<number> {
 /** `lockit ls` — one value-free line per secret: `<slug>  [<schema>]  <KEY1>,<KEY2>`.
  *  Prints structure (slug/schema/field keys) only, never a value. */
 export async function cmdLs(io: Io): Promise<number> {
-  const passphrase = passphraseOrError(io);
-  if (passphrase === undefined) return 1;
+  const passphrase = resolveKey(io);
 
   const store = await loadStore(passphrase, storePath());
 
@@ -172,8 +169,7 @@ function exitCode(code: number | null, signal: NodeJS.Signals | null): number {
  *  spawns the command, and masks every injected value in the child's stdout /
  *  stderr before forwarding. lockit's own output never carries a secret value. */
 export async function cmdRun(io: Io): Promise<number> {
-  const passphrase = passphraseOrError(io);
-  if (passphrase === undefined) return 1;
+  const passphrase = resolveKey(io);
 
   const [slug, ...rest] = io.argv;
   if (slug === undefined) {
