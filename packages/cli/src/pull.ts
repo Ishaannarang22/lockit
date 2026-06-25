@@ -78,8 +78,18 @@ export async function cmdPull(io: Io): Promise<number> {
     return 1;
   }
 
+  // In a project, names resolve through the vault (sandbox: only admitted keys).
+  const projectRoot = findProjectRoot(io.cwd ?? process.cwd());
+  const vault = projectRoot !== undefined ? readVault(projectRoot) : undefined;
+
   const entries: DotenvEntry[] = [];
   if (args.allBundle !== undefined) {
+    // `--all <bundle>` reaches into the global store, so it is refused inside a
+    // project — admit keys and pull them by name instead.
+    if (vault !== undefined) {
+      io.err("inside a lockit project: admit keys and pull them by name; --all is global-only\n");
+      return 1;
+    }
     const sec = getSecret(store, args.allBundle);
     if (sec === undefined) {
       io.err(`not found: bundle ${args.allBundle}\n`);
@@ -87,9 +97,6 @@ export async function cmdPull(io: Io): Promise<number> {
     }
     for (const f of sec.fields) if (f.type === "env") entries.push({ key: f.key, value: f.value });
   }
-  // In a project, names resolve through the vault (sandbox: only admitted keys).
-  const projectRoot = findProjectRoot(io.cwd ?? process.cwd());
-  const vault = projectRoot !== undefined ? readVault(projectRoot) : undefined;
 
   for (const name of args.names) {
     if (vault !== undefined) {

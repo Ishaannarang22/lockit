@@ -246,6 +246,15 @@ export async function cmdRun(io: Io): Promise<number> {
     return await spawnMasked(io, cmd, injected);
   }
 
+  // Global mode (`run <slug>`) is refused INSIDE a project: the sandbox requires
+  // admission, so use `run -- <cmd>` (admitted keys) or admit the secret first.
+  if (findProjectRoot(io.cwd ?? process.cwd()) !== undefined) {
+    io.err(
+      "inside a lockit project: use 'lockit run -- <cmd>' (this project's admitted keys); 'run <slug>' is global-only\n",
+    );
+    return 1;
+  }
+
   const [slug, ...rest] = io.argv;
   if (slug === undefined) {
     io.err("usage: lockit run <slug> [--] <cmd> [args...]  |  lockit run -- <cmd>\n");

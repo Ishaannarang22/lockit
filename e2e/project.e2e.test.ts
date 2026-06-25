@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runLockit, withSandbox } from "./helpers.js";
@@ -36,6 +36,39 @@ describe("per-project keys + admission (e2e, real binary)", () => {
       } finally {
         rmSync(a, { recursive: true, force: true });
         rmSync(b, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("inside a project, global 'run <slug>' and 'pull --all' are refused (no sandbox bypass)", async () => {
+    await withSandbox(async (home) => {
+      const p = mkdtempSync(join(tmpdir(), "lockit-S-"));
+      try {
+        await runLockit(home, ["init"], { cwd: p });
+        // a global secret that is NEVER admitted to this project
+        await runLockit(home, ["set", "prod/db", "PASSWORD"], { stdin: "SECRET-NEVER-ADMITTED" });
+
+        // B1: global run <slug> inside a project must be refused, nothing written
+        const r1 = await runLockit(
+          home,
+          ["run", "prod/db", "--", "sh", "-c", `printf %s "$PASSWORD" > ${join(p, "x.txt")}`],
+          { cwd: p },
+        );
+        expect(r1.code).toBe(1);
+        expect(r1.stderr).toContain("global-only");
+        expect(existsSync(join(p, "x.txt"))).toBe(false);
+
+        // B2: pull --all inside a project must be refused, nothing written
+        const r2 = await runLockit(
+          home,
+          ["pull", "--all", "prod/db", "--out", join(p, ".env"), "--yes"],
+          { cwd: p },
+        );
+        expect(r2.code).toBe(1);
+        expect(r2.stderr).toContain("global-only");
+        expect(existsSync(join(p, ".env"))).toBe(false);
+      } finally {
+        rmSync(p, { recursive: true, force: true });
       }
     });
   });

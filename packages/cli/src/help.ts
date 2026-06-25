@@ -9,10 +9,23 @@ output is value-free (names and structure only, never a secret value).
 USAGE
   lockit <command> [args]
 
-COMMANDS
+PROJECTS (per-project keys + admission)
+  A project is a directory with a .lockit/ (run 'lockit init'). Each project
+  tracks its own keys, so the same name can hold different values in different
+  projects. A project may only use keys admitted to it; admitting an existing
+  shared secret requires a human confirmation an agent cannot satisfy.
+
+  init                              Mark the current directory as a project.
+  set <NAME>                        Create a PROJECT-LOCAL key (value via stdin) + bind it.
+  admit <slug|slug#field> [--as N]  Bind an existing/shared stored secret into this
+                                    project. Prompts for confirmation (the gate).
+  status                            This project's bound keys, value-free.
+  run -- <cmd> [args...]            Run a command with this project's admitted keys injected.
+
+COMMANDS (global store)
   set <slug> <KEY> [--schema <s>] [--file]
-        Store a secret field. The VALUE is read from STDIN only (never argv),
-        so it never lands in your shell history or a process listing.
+        Store a secret field in the global store. The VALUE is read from STDIN
+        only (never argv), so it never lands in your shell history.
   ls [--vars]
         List what you have, value-free. Default groups by secret; --vars lists
         every variable with its bundle. Never prints a value.
@@ -44,11 +57,16 @@ CONFIG (environment variables)
   LOCKIT_PULL_YES=1  Skip the pull confirmation (non-interactive)
 
 EXAMPLES
+  # global store
   printf 'sk-live-123' | lockit set stripe/prod STRIPE_KEY
   lockit ls --vars
   lockit run stripe/prod -- node server.js
-  lockit import .env --as myapp/dev
-  lockit pull STRIPE_KEY --yes
+  # per-project
+  lockit init
+  printf 'postgres://a' | lockit set DATABASE_URL      # project-local key
+  lockit admit stripe/prod#STRIPE_KEY                  # admit a shared secret (prompts)
+  lockit status
+  lockit run -- npm start                              # inject this project's keys
 
 Docs: https://www.npmjs.com/package/@lockit/cli
 `;
