@@ -71,6 +71,7 @@ describe("@lockit/core barrel re-exports", () => {
         "readVault",
         "writeVault",
         "initProject",
+        "projectLocalSlug",
         "parseRef",
         "resolveBinding",
         "resolveVaultEnv",

@@ -5,10 +5,10 @@ import * as tty from "node:tty";
  *  controlling terminal is available or on anything but an explicit yes. An
  *  agent that drives the child's stdin cannot answer a /dev/tty prompt, so it
  *  cannot self-authorize. `LOCKIT_PULL_YES=1` bypasses the prompt. */
-export function ttyAuthorize(): Promise<boolean> {
+export function ttyAuthorize(prompt = "write secret values to the env file?"): Promise<boolean> {
   return new Promise((resolve) => {
     if (process.env.LOCKIT_PULL_YES === "1") {
-      process.stderr.write("warning: LOCKIT_PULL_YES=1 — pull confirmation skipped\n");
+      process.stderr.write("warning: LOCKIT_PULL_YES=1 — confirmation skipped\n");
       resolve(true);
       return;
     }
@@ -23,7 +23,7 @@ export function ttyAuthorize(): Promise<boolean> {
 
     const input = new tty.ReadStream(fd);
     const output = new tty.WriteStream(fd);
-    output.write("lockit: write secret values to the env file? [y/N] ");
+    output.write(`lockit: ${prompt} [y/N] `);
     try {
       input.setRawMode(true);
     } catch {

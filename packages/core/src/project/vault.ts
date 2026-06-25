@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
+import { basename, dirname, join } from "node:path";
 
 /** A project's value-free binding map: ENV_VAR_NAME -> "slug#field". No values. */
 export interface Vault {
@@ -60,6 +61,19 @@ export function readVault(projectRoot: string): Vault {
 export function writeVault(projectRoot: string, vault: Vault): void {
   mkdirSync(join(projectRoot, PROJECT_DIR), { recursive: true });
   writeFileSync(vaultPath(projectRoot), `${JSON.stringify(vault, null, 2)}\n`);
+}
+
+/** The slug under which a project's own ("local") secrets are stored in the
+ *  global store — the directory basename plus a hash of its absolute path, so
+ *  two same-named projects never collide. Valid slug: lowercase alnum + hyphen. */
+export function projectLocalSlug(projectRoot: string): string {
+  const base =
+    basename(projectRoot)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "proj";
+  const h = createHash("sha256").update(projectRoot).digest("hex").slice(0, 8);
+  return `${base}-${h}`;
 }
 
 /** `lockit init`: create `.lockit/` + an empty vault at `dir` (idempotent).

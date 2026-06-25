@@ -18,6 +18,8 @@ export interface RunOpts {
   stdin?: string;
   passphrase?: string;
   env?: Record<string, string>;
+  /** Working directory for the child — used to exercise per-project behavior. */
+  cwd?: string;
 }
 
 /** Spawn the real `lockit` binary in a sandbox HOME and capture stdout/stderr/exit.
@@ -26,7 +28,7 @@ export function runLockit(home: string, args: string[], opts: RunOpts = {}): Pro
   return new Promise((resolveP, reject) => {
     const env: NodeJS.ProcessEnv = { ...process.env, LOCKIT_HOME: home, ...opts.env };
     if (opts.passphrase !== undefined) env.LOCKIT_PASSPHRASE = opts.passphrase;
-    const child = spawn(process.execPath, [LOCKIT_BIN, ...args], { env });
+    const child = spawn(process.execPath, [LOCKIT_BIN, ...args], { env, cwd: opts.cwd });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (c: Buffer) => (stdout += c.toString("utf8")));

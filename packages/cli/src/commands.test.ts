@@ -148,10 +148,12 @@ describe("lockit cli commands", () => {
       expect(set.out).toBe("");
     });
 
-    it("rejects missing KEY (only slug given)", async () => {
-      const set = await run(cmdSet, ["openai/dev"], "v\n");
+    it("one positional outside a project is rejected with a project hint", async () => {
+      // A single positional means project-local set; with no .lockit/ ancestor
+      // (the test cwd is not a project), it errors and points at init / global set.
+      const set = await run(cmdSet, ["OPENAI_API_KEY"], "v\n");
       expect(set.code).toBe(1);
-      expect(set.err).toContain("usage: lockit set <slug> <KEY>");
+      expect(set.err).toContain("not in a lockit project");
     });
 
     it("--schema requires a following value (none provided) -> exit 1", async () => {

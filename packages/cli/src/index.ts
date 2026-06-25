@@ -6,9 +6,10 @@ import { ttyAuthorize } from "./authorize.js";
 import { cmdCompleteList, cmdCompletion } from "./completion.js";
 import { cmdInstall } from "./install.js";
 import { cmdHelp } from "./help.js";
+import { cmdInit, cmdAdmit, cmdStatus } from "./project.js";
 
 const USAGE =
-  "usage: lockit <set|ls|run|import|pull|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
+  "usage: lockit <init|set|admit|status|ls|run|import|pull|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
 
 /** Read all of stdin to a string. Only `set` needs the value, so we read lazily. */
 async function readStdin(): Promise<string> {
@@ -33,8 +34,35 @@ async function main(): Promise<number> {
     const io: Io = { argv, stdin: "", env: process.env, out, err };
     return await cmdHelp(io);
   }
+  if (command === "init") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
+    return await cmdInit(io);
+  }
+  if (command === "status") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
+    return await cmdStatus(io);
+  }
+  if (command === "admit") {
+    const io: Io = {
+      argv,
+      stdin: "",
+      env: process.env,
+      out,
+      err,
+      cwd: process.cwd(),
+      authorize: ttyAuthorize,
+    };
+    return await cmdAdmit(io);
+  }
   if (command === "set") {
-    const io: Io = { argv, stdin: await readStdin(), env: process.env, out, err };
+    const io: Io = {
+      argv,
+      stdin: await readStdin(),
+      env: process.env,
+      out,
+      err,
+      cwd: process.cwd(),
+    };
     return await cmdSet(io);
   }
   if (command === "ls") {
@@ -42,7 +70,7 @@ async function main(): Promise<number> {
     return await cmdLs(io);
   }
   if (command === "run") {
-    const io: Io = { argv, stdin: "", env: process.env, out, err };
+    const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
     return await cmdRun(io);
   }
   if (command === "import") {
@@ -50,7 +78,15 @@ async function main(): Promise<number> {
     return await cmdImport(io);
   }
   if (command === "pull") {
-    const io: Io = { argv, stdin: "", env: process.env, out, err, authorize: ttyAuthorize };
+    const io: Io = {
+      argv,
+      stdin: "",
+      env: process.env,
+      out,
+      err,
+      cwd: process.cwd(),
+      authorize: ttyAuthorize,
+    };
     return await cmdPull(io);
   }
   if (command === "install") {

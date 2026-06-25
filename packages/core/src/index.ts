@@ -26,6 +26,7 @@ export {
   readVault,
   writeVault,
   initProject,
+  projectLocalSlug,
 } from "./project/vault.js";
 export type { Vault } from "./project/vault.js";
 export { parseRef, resolveBinding, resolveVaultEnv, resolveAdmit } from "./project/admission.js";

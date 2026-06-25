@@ -2,9 +2,12 @@ import { readFile, writeFile, chmod } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {
+  findProjectRoot,
   getSecret,
   loadStore,
   mergeDotenv,
+  readVault,
+  resolveBinding,
   resolveVar,
   storePath,
   type DotenvEntry,
@@ -84,7 +87,24 @@ export async function cmdPull(io: Io): Promise<number> {
     }
     for (const f of sec.fields) if (f.type === "env") entries.push({ key: f.key, value: f.value });
   }
+  // In a project, names resolve through the vault (sandbox: only admitted keys).
+  const projectRoot = findProjectRoot(io.cwd ?? process.cwd());
+  const vault = projectRoot !== undefined ? readVault(projectRoot) : undefined;
+
   for (const name of args.names) {
+    if (vault !== undefined) {
+      const b = resolveBinding(store, vault, name);
+      if (b.status === "unbound") {
+        io.err(`not admitted to this project: ${name} (run: lockit admit ... --as ${name})\n`);
+        return 1;
+      }
+      if (b.status === "missing") {
+        io.err(`binding is broken: ${name} -> ${b.ref}\n`);
+        return 1;
+      }
+      entries.push({ key: name, value: b.value });
+      continue;
+    }
     const r = resolveVar(store, name);
     if (r.status === "none") {
       io.err(`not found: ${name}\n`);

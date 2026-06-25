@@ -137,11 +137,13 @@ describe("lockit set (e2e, real binary)", () => {
     });
   });
 
-  it("usage error when only the slug is given (exit 1)", async () => {
+  it("one positional outside a project errors with a project hint (exit 1)", async () => {
     await withSandbox(async (home) => {
-      const set = await runLockit(home, ["set", "openai/dev"], { passphrase: PW, stdin: "v" });
+      // A single positional means project-local set; with no .lockit/ here it
+      // errors and points at init / the two-arg global form.
+      const set = await runLockit(home, ["set", "OPENAI_API_KEY"], { passphrase: PW, stdin: "v" });
       expect(set.code).toBe(1);
-      expect(set.stderr).toContain("usage: lockit set <slug> <KEY>");
+      expect(set.stderr).toContain("not in a lockit project");
     });
   });
 

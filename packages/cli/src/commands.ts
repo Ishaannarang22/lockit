@@ -2,13 +2,20 @@ import { spawn } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { constants as osConstants } from "node:os";
 import {
+  bindKey,
+  findProjectRoot,
   getSecret,
+  isValidFieldKey,
   listSecrets,
   loadStore,
+  projectLocalSlug,
+  readVault,
+  resolveVaultEnv,
   saveStore,
   secretEnv,
   storePath,
   upsertField,
+  writeVault,
 } from "@lockit/core";
 import type { FieldType } from "@lockit/core";
 import { loadOrCreateKey } from "./keyfile.js";
@@ -21,10 +28,12 @@ export interface Io {
   env: NodeJS.ProcessEnv;
   out: (s: string) => void;
   err: (s: string) => void;
-  /** Human authorization for plaintext egress (pull): true to proceed. The
-   *  real implementation prompts y/N on /dev/tty so an agent driving stdin
-   *  cannot self-authorize. */
-  authorize?: () => Promise<boolean>;
+  /** Working directory used to locate the current project (default process.cwd()). */
+  cwd?: string;
+  /** Human presence gate for admission / pull: true to proceed. The real
+   *  implementation prompts y/N on /dev/tty (with `prompt`), so an agent driving
+   *  stdin cannot self-authorize. */
+  authorize?: (prompt?: string) => Promise<boolean>;
 }
 
 /** The store key: `LOCKIT_PASSPHRASE` if explicitly set (override), otherwise
@@ -70,6 +79,32 @@ export async function cmdSet(io: Io): Promise<number> {
     }
   }
 
+  const value = trimOneTrailingNewline(io.stdin);
+
+  // One positional inside a project → create a PROJECT-LOCAL secret and bind it,
+  // so `set DATABASE_URL` means "this project's DATABASE_URL".
+  if (positional.length === 1 && positional[0] !== undefined) {
+    const name = positional[0];
+    const root = findProjectRoot(io.cwd ?? process.cwd());
+    if (root === undefined) {
+      io.err(
+        "not in a lockit project. Use 'lockit set <slug> <KEY>' for the global store, or run 'lockit init'.\n",
+      );
+      return 1;
+    }
+    if (!isValidFieldKey(name)) {
+      io.err(`invalid key: ${JSON.stringify(name)}\n`);
+      return 1;
+    }
+    const slug = projectLocalSlug(root);
+    let store = await loadStore(passphrase, storePath());
+    store = upsertField(store, { slug, schema: slug, key: name, type, value });
+    await saveStore(store, passphrase, storePath());
+    writeVault(root, bindKey(readVault(root), name, `${slug}#${name}`));
+    io.out(`set ${name} (project)\n`);
+    return 0;
+  }
+
   const slug = positional[0];
   const key = positional[1];
   if (slug === undefined || key === undefined) {
@@ -78,7 +113,6 @@ export async function cmdSet(io: Io): Promise<number> {
   }
 
   const resolvedSchema = schema ?? slug.split("/")[0] ?? "";
-  const value = trimOneTrailingNewline(io.stdin);
 
   let store = await loadStore(passphrase, storePath());
   try {
@@ -164,45 +198,18 @@ function exitCode(code: number | null, signal: NodeJS.Signals | null): number {
   return 0;
 }
 
-/** `lockit run <slug> [--] <cmd> [args...]`
- *  Decrypts in memory, injects `env`-type fields into the child's environment,
- *  spawns the command, and masks every injected value in the child's stdout /
- *  stderr before forwarding. lockit's own output never carries a secret value. */
-export async function cmdRun(io: Io): Promise<number> {
-  const passphrase = resolveKey(io);
-
-  const [slug, ...rest] = io.argv;
-  if (slug === undefined) {
-    io.err("usage: lockit run <slug> [--] <cmd> [args...]\n");
-    return 1;
-  }
-
-  const cmd = rest[0] === "--" ? rest.slice(1) : rest;
-  const command = cmd[0];
-  if (command === undefined) {
-    io.err("usage: lockit run <slug> [--] <cmd> [args...]\n");
-    return 1;
-  }
-
-  const store = await loadStore(passphrase, storePath());
-  const secret = getSecret(store, slug);
-  if (secret === undefined) {
-    io.err(`no secret: ${slug}\n`);
-    return 1;
-  }
-
-  const injected = secretEnv(secret);
+/** Spawn `cmd` with `injected` env vars set, masking every injected value in the
+ *  child's stdout/stderr. Shared by global `run <slug>` and project `run -- cmd`. */
+function spawnMasked(io: Io, cmd: string[], injected: Record<string, string>): Promise<number> {
+  const command = cmd[0]!;
   const values = Object.values(injected);
   const env: NodeJS.ProcessEnv = { ...io.env, ...injected };
-
-  return await new Promise<number>((resolve) => {
+  return new Promise<number>((resolve) => {
     const child = spawn(command, cmd.slice(1), { env, stdio: ["inherit", "pipe", "pipe"] });
     const outFwd = makeMaskingForwarder(values, io.out);
     const errFwd = makeMaskingForwarder(values, io.err);
-
     child.stdout?.on("data", (chunk: Buffer) => outFwd.onData(chunk));
     child.stderr?.on("data", (chunk: Buffer) => errFwd.onData(chunk));
-
     child.on("error", (e) => {
       io.err(`failed to run ${command}: ${e instanceof Error ? e.message : String(e)}\n`);
       resolve(1);
@@ -213,4 +220,48 @@ export async function cmdRun(io: Io): Promise<number> {
       resolve(exitCode(code, signal));
     });
   });
+}
+
+/** `lockit run -- <cmd>` (project: inject this project's admitted keys) or
+ *  `lockit run <slug> [--] <cmd>` (global: inject one secret's fields). Both
+ *  decrypt in memory and mask injected values in the child's output. */
+export async function cmdRun(io: Io): Promise<number> {
+  const passphrase = resolveKey(io);
+
+  // Project mode: `run -- cmd ...` — inject the current project's vault bindings.
+  if (io.argv[0] === "--") {
+    const cmd = io.argv.slice(1);
+    if (cmd[0] === undefined) {
+      io.err("usage: lockit run -- <cmd> [args...]\n");
+      return 1;
+    }
+    const root = findProjectRoot(io.cwd ?? process.cwd());
+    if (root === undefined) {
+      io.err("not in a lockit project (run: lockit init)\n");
+      return 1;
+    }
+    const store = await loadStore(passphrase, storePath());
+    const { env: injected, missing } = resolveVaultEnv(store, readVault(root));
+    if (missing.length > 0) io.err(`warning: unresolved bindings: ${missing.sort().join(", ")}\n`);
+    return await spawnMasked(io, cmd, injected);
+  }
+
+  const [slug, ...rest] = io.argv;
+  if (slug === undefined) {
+    io.err("usage: lockit run <slug> [--] <cmd> [args...]  |  lockit run -- <cmd>\n");
+    return 1;
+  }
+  const cmd = rest[0] === "--" ? rest.slice(1) : rest;
+  if (cmd[0] === undefined) {
+    io.err("usage: lockit run <slug> [--] <cmd> [args...]  |  lockit run -- <cmd>\n");
+    return 1;
+  }
+
+  const store = await loadStore(passphrase, storePath());
+  const secret = getSecret(store, slug);
+  if (secret === undefined) {
+    io.err(`no secret: ${slug}\n`);
+    return 1;
+  }
+  return await spawnMasked(io, cmd, secretEnv(secret));
 }
