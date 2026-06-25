@@ -16,3 +16,15 @@ export { parseDotenv, mergeDotenv } from "./env/dotenv.js";
 export type { DotenvEntry, MergeResult } from "./env/dotenv.js";
 export { resolveVar } from "./store/resolve.js";
 export type { ResolveResult } from "./store/resolve.js";
+export {
+  emptyVault,
+  bindKey,
+  unbindKey,
+  vaultRef,
+  findProjectRoot,
+  vaultPath,
+  readVault,
+  writeVault,
+  initProject,
+} from "./project/vault.js";
+export type { Vault } from "./project/vault.js";
