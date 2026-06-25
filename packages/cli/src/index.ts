@@ -3,8 +3,9 @@ import { cmdLs, cmdRun, cmdSet, type Io } from "./commands.js";
 import { cmdImport } from "./import.js";
 import { cmdPull } from "./pull.js";
 import { ttyAuthorize } from "./authorize.js";
+import { cmdCompleteList, cmdCompletion } from "./completion.js";
 
-const USAGE = "usage: lockit <set|ls|run|import|pull> [args...]\n";
+const USAGE = "usage: lockit <set|ls|run|import|pull|completion> [args...]\n";
 
 /** Read all of stdin to a string. Only `set` needs the value, so we read lazily. */
 async function readStdin(): Promise<string> {
@@ -44,6 +45,14 @@ async function main(): Promise<number> {
   if (command === "pull") {
     const io: Io = { argv, stdin: "", env: process.env, out, err, authorize: ttyAuthorize };
     return await cmdPull(io);
+  }
+  if (command === "completion") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err };
+    return await cmdCompletion(io);
+  }
+  if (command === "__complete-list") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err };
+    return await cmdCompleteList(io);
   }
 
   err(USAGE);
