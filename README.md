@@ -36,7 +36,7 @@ printf 'postgres://a' | lockit set DATABASE_URL   # project-local key
 lockit admit stripe/prod#STRIPE_KEY               # admit a shared secret (prompts to confirm)
 lockit run -- npm start                           # inject THIS project's admitted keys, masked
 
-lockit install                                    # shell tab-completion
+lockit install                                    # tab-completion + global Claude skill
 lockit help                                        # full reference (agents: read this)
 ```
 

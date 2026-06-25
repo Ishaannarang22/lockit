@@ -94,37 +94,48 @@ lockit pull STRIPE_KEY DATABASE_URL    # asks to confirm first; --yes to skip
 
 ## Commands
 
-| Command                                                                         | What it does                                                                  |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `init`                                                                          | Mark the current directory a project (creates `.lockit/`).                    |
-| `set <NAME>`                                                                    | In a project: create a **project-local** key (value via stdin) + bind it.     |
-| `set <slug> <KEY> [--schema <s>] [--file]`                                      | Store a field in the **global** store. VALUE is read from **stdin only**.     |
-| `admit <slug\|slug#field> [--as NAME]`                                          | Bind an existing/shared secret into this project. **Prompts to confirm.**     |
-| `status`                                                                        | This project's admitted keys, value-free.                                     |
-| `ls [--vars]`                                                                   | List global secrets, value-free. `--vars` lists individual variables.         |
-| `run -- <cmd> [args...]`                                                        | In a project: run `<cmd>` with the project's admitted keys injected, masked.  |
-| `run <slug> [--] <cmd> [args...]`                                               | Global (outside a project): inject one secret's fields.                       |
-| `import [path] [--as <slug>]`                                                   | Import a `.env` into the global store (default `./.env`). Doesn't touch file. |
-| `pull <VAR...> \| <bundle#VAR> \| --all <bundle> [--out <f>] [--force] [--yes]` | Write real values into a `.env`. Confirms first. Sandboxed inside a project.  |
-| `install [zsh\|bash]`                                                           | Install shell tab-completion (no rc edit on Homebrew zsh).                    |
-| `completion <zsh\|bash>`                                                        | Print the completion script (for `eval` or Homebrew).                         |
-| `help`, `--help`, `-h`                                                          | Show help.                                                                    |
+| Command                                                                         | What it does                                                                     |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `init`                                                                          | Mark the current directory a project (creates `.lockit/`).                       |
+| `set <NAME>`                                                                    | In a project: create a **project-local** key (value via stdin) + bind it.        |
+| `set <slug> <KEY> [--schema <s>] [--file]`                                      | Store a field in the **global** store. VALUE is read from **stdin only**.        |
+| `admit <slug\|slug#field> [--as NAME]`                                          | Bind an existing/shared secret into this project. **Prompts to confirm.**        |
+| `status`                                                                        | This project's admitted keys, value-free.                                        |
+| `ls [--vars]`                                                                   | List global secrets, value-free. `--vars` lists individual variables.            |
+| `run -- <cmd> [args...]`                                                        | In a project: run `<cmd>` with the project's admitted keys injected, masked.     |
+| `run <slug> [--] <cmd> [args...]`                                               | Global (outside a project): inject one secret's fields.                          |
+| `import [path] [--as <slug>]`                                                   | Import a `.env` into the global store (default `./.env`). Doesn't touch file.    |
+| `pull <VAR...> \| <bundle#VAR> \| --all <bundle> [--out <f>] [--force] [--yes]` | Write real values into a `.env`. Confirms first. Sandboxed inside a project.     |
+| `install [zsh\|bash] [--no-skill]`                                              | Set up tab-completion + the global Claude skill. `--no-skill` = completion only. |
+| `completion <zsh\|bash>`                                                        | Print the completion script (for `eval` or Homebrew).                            |
+| `help`, `--help`, `-h`                                                          | Show help.                                                                       |
 
 Run `lockit help` for the full reference.
 
-## Tab-completion
+## Set up: `lockit install`
+
+One command after install wires up everything:
 
 ```sh
-lockit install          # detects your shell, drops a completion file into your $fpath
+npm i -g @lockit/cli
+lockit install          # shell tab-completion + the agent-safe Claude skill
 exec zsh                # or open a new terminal
-lockit pull nvi⇥        # completes to NVIDIA_API_KEY, etc.
 ```
+
+`lockit install` does two things:
+
+- **Shell tab-completion** — drops a completion file into your `$fpath` (no rc
+  edit on Homebrew zsh). Then `lockit pull nvi⇥` → `NVIDIA_API_KEY`.
+- **The Claude skill** — writes the agent-safe skill to `~/.claude/skills/` so
+  **Claude knows how to use lockit in every repo** (drive it by names, use `run`,
+  request admission, never print a value). Use `--no-skill` to skip it.
 
 ## For AI agents
 
-There's a **Claude Code plugin** in [`plugin/`](https://www.npmjs.com/package/@lockit/cli)
-(in the repo): a skill teaching the agent-safe workflow plus a hook that warns on
-`pull` egress. The rules:
+**`lockit install` drops an agent-safe skill into `~/.claude/skills/`**, so Claude
+picks up these rules automatically in every repo. (A fuller Claude Code **plugin**
+— the same skill plus a `pull`-egress hook — lives in `plugin/` in the repo.) The
+rules:
 
 - `lockit help` (or `--help`) prints the full command reference — read it first.
 - `lockit status` (project) and `lockit ls` / `ls --vars` (global) are

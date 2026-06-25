@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chooseZshTarget, chooseBashTarget, cmdInstall } from "./install.js";
@@ -72,6 +72,29 @@ describe("cmdInstall", () => {
     expect(written).toContain("lockit __complete-list");
     expect(io.stdout).toContain(join(dir, "_lockit"));
     expect(io.stdout).toContain("restart your shell");
+  });
+
+  it("also installs the Claude skill into ~/.claude/skills (global)", async () => {
+    const io = makeIo(["zsh"], { LOCKIT_COMPLETION_DIR: dir, HOME: home } as NodeJS.ProcessEnv);
+    expect(await cmdInstall(io)).toBe(0);
+    const skill = readFileSync(
+      join(home, ".claude", "skills", "lockit-agent-safe", "SKILL.md"),
+      "utf8",
+    );
+    expect(skill).toContain("lockit run");
+    expect(skill).toContain("Never");
+    expect(io.stdout).toContain("Claude skill");
+  });
+
+  it("--no-skill skips the Claude skill", async () => {
+    const io = makeIo(["zsh", "--no-skill"], {
+      LOCKIT_COMPLETION_DIR: dir,
+      HOME: home,
+    } as NodeJS.ProcessEnv);
+    expect(await cmdInstall(io)).toBe(0);
+    expect(existsSync(join(home, ".claude", "skills", "lockit-agent-safe", "SKILL.md"))).toBe(
+      false,
+    );
   });
 
   it("writes a bash completion file when asked for bash", async () => {

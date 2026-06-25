@@ -39,8 +39,10 @@ COMMANDS (global store)
   pull <VAR...> | <bundle#VAR> | --all <bundle> [--out <file>] [--force] [--yes]
         Write real secret values into a .env file. Asks for confirmation on the
         terminal first; --yes (or LOCKIT_PULL_YES=1) skips it for scripts/agents.
-  install [zsh|bash]
-        Install shell tab-completion (no rc edit on Homebrew zsh setups).
+  install [zsh|bash] [--no-skill]
+        Set up lockit: shell tab-completion AND the agent-safe Claude skill
+        (installed globally to ~/.claude/skills, so Claude knows lockit in every
+        repo). --no-skill installs completion only.
   completion <zsh|bash>
         Print the completion script (for eval or a Homebrew formula).
   help, --help, -h
