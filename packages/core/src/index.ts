@@ -28,3 +28,5 @@ export {
   initProject,
 } from "./project/vault.js";
 export type { Vault } from "./project/vault.js";
+export { parseRef, resolveBinding, resolveVaultEnv, resolveAdmit } from "./project/admission.js";
+export type { Ref, BindingResolution, AdmitResolution } from "./project/admission.js";
