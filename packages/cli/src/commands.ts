@@ -9,8 +9,8 @@ import {
   secretEnv,
   storePath,
   upsertField,
-} from "@kv/core";
-import type { FieldType } from "@kv/core";
+} from "@lockit/core";
+import type { FieldType } from "@lockit/core";
 
 /** The injected IO surface every handler talks to — no direct `process.std*`,
  *  so handlers stay pure-ish and unit-testable with a fake IO. */
@@ -25,9 +25,9 @@ export interface Io {
 /** Pull the passphrase from the environment, or signal a value-free failure.
  *  Returns `undefined` after writing the error, so callers `return 1`. */
 function passphraseOrError(io: Io): string | undefined {
-  const passphrase = io.env.KV_PASSPHRASE;
+  const passphrase = io.env.LOCKIT_PASSPHRASE;
   if (passphrase === undefined || passphrase.length === 0) {
-    io.err("KV_PASSPHRASE is not set\n");
+    io.err("LOCKIT_PASSPHRASE is not set\n");
     return undefined;
   }
   return passphrase;
@@ -41,7 +41,7 @@ function trimOneTrailingNewline(value: string): string {
   return value;
 }
 
-/** `kv set <slug> <KEY> [--schema <s>] [--file]`
+/** `lockit set <slug> <KEY> [--schema <s>] [--file]`
  *  The VALUE is read from stdin only — never from argv — so it never lands in
  *  process listings, shell history, or the args of a spawned process. */
 export async function cmdSet(io: Io): Promise<number> {
@@ -72,7 +72,7 @@ export async function cmdSet(io: Io): Promise<number> {
   const slug = positional[0];
   const key = positional[1];
   if (slug === undefined || key === undefined) {
-    io.err("usage: kv set <slug> <KEY> [--schema <s>] [--file]\n");
+    io.err("usage: lockit set <slug> <KEY> [--schema <s>] [--file]\n");
     return 1;
   }
 
@@ -92,7 +92,7 @@ export async function cmdSet(io: Io): Promise<number> {
   return 0;
 }
 
-/** `kv ls` — one value-free line per secret: `<slug>  [<schema>]  <KEY1>,<KEY2>`.
+/** `lockit ls` — one value-free line per secret: `<slug>  [<schema>]  <KEY1>,<KEY2>`.
  *  Prints structure (slug/schema/field keys) only, never a value. */
 export async function cmdLs(io: Io): Promise<number> {
   const passphrase = passphraseOrError(io);
@@ -152,24 +152,24 @@ function exitCode(code: number | null, signal: NodeJS.Signals | null): number {
   return 0;
 }
 
-/** `kv run <slug> [--] <cmd> [args...]`
+/** `lockit run <slug> [--] <cmd> [args...]`
  *  Decrypts in memory, injects `env`-type fields into the child's environment,
  *  spawns the command, and masks every injected value in the child's stdout /
- *  stderr before forwarding. kv's own output never carries a secret value. */
+ *  stderr before forwarding. lockit's own output never carries a secret value. */
 export async function cmdRun(io: Io): Promise<number> {
   const passphrase = passphraseOrError(io);
   if (passphrase === undefined) return 1;
 
   const [slug, ...rest] = io.argv;
   if (slug === undefined) {
-    io.err("usage: kv run <slug> [--] <cmd> [args...]\n");
+    io.err("usage: lockit run <slug> [--] <cmd> [args...]\n");
     return 1;
   }
 
   const cmd = rest[0] === "--" ? rest.slice(1) : rest;
   const command = cmd[0];
   if (command === undefined) {
-    io.err("usage: kv run <slug> [--] <cmd> [args...]\n");
+    io.err("usage: lockit run <slug> [--] <cmd> [args...]\n");
     return 1;
   }
 

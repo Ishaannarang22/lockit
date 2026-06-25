@@ -29,13 +29,13 @@ importers:
 
   packages/cli:
     dependencies:
-      '@kv/core':
+      '@lockit/core':
         specifier: workspace:*
         version: link:../core
 
   packages/core:
     dependencies:
-      '@kv/crypto':
+      '@lockit/crypto':
         specifier: workspace:*
         version: link:../crypto
 

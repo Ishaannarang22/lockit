@@ -1,6 +1,6 @@
 import { open, mkdir, readFile, rename } from "node:fs/promises";
 import { dirname } from "node:path";
-import { sealWithPassphrase, openWithPassphrase } from "@kv/crypto";
+import { sealWithPassphrase, openWithPassphrase } from "@lockit/crypto";
 import { emptyStore, type StoreData } from "./store.js";
 import { encodeStore, decodeStore } from "./store-codec.js";
 

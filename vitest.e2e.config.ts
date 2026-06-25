@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 
-// Black-box e2e: spawns the real compiled `kv` binary in disposable sandbox
+// Black-box e2e: spawns the real compiled `veyl` binary in disposable sandbox
 // HOMEs. Kept out of the fast unit gate (`pnpm test`); run via `pnpm test:e2e`.
 export default defineConfig({
   test: {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { cmdLs, cmdRun, cmdSet, type Io } from "./commands.js";
 
-const USAGE = "usage: kv <set|ls|run> [args...]\n";
+const USAGE = "usage: lockit <set|ls|run> [args...]\n";
 
 /** Read all of stdin to a string. Only `set` needs the value, so we read lazily. */
 async function readStdin(): Promise<string> {

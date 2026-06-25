@@ -12,7 +12,7 @@ import {
   isValidFieldKey,
   saveStore,
   loadStore,
-  kvHome,
+  lockitHome,
   storePath,
 } from "./index.js";
 
@@ -29,9 +29,9 @@ import {
   isValidFieldKey as isValidFieldKeySrc,
 } from "./store/store.js";
 import { saveStore as saveStoreSrc, loadStore as loadStoreSrc } from "./store/store-persist.js";
-import { kvHome as kvHomeSrc, storePath as storePathSrc } from "./paths.js";
+import { lockitHome as lockitHomeSrc, storePath as storePathSrc } from "./paths.js";
 
-describe("@kv/core barrel re-exports", () => {
+describe("@lockit/core barrel re-exports", () => {
   it("re-exports every model/secret value binding (same identity)", () => {
     expect(createSecret).toBe(createSecretSrc);
     expect(isValidSlug).toBe(isValidSlugSrc);
@@ -53,7 +53,7 @@ describe("@kv/core barrel re-exports", () => {
   });
 
   it("re-exports the path helpers (same identity)", () => {
-    expect(kvHome).toBe(kvHomeSrc);
+    expect(lockitHome).toBe(lockitHomeSrc);
     expect(storePath).toBe(storePathSrc);
   });
 
@@ -65,7 +65,7 @@ describe("@kv/core barrel re-exports", () => {
         "getSecret",
         "isValidFieldKey",
         "isValidSlug",
-        "kvHome",
+        "lockitHome",
         "listSecrets",
         "loadStore",
         "removeSecret",
@@ -90,7 +90,7 @@ describe("@kv/core barrel re-exports", () => {
       isValidFieldKey,
       saveStore,
       loadStore,
-      kvHome,
+      lockitHome,
       storePath,
     ]) {
       expect(typeof fn).toBe("function");

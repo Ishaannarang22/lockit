@@ -1,59 +1,59 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { kvHome, storePath } from "./paths.js";
+import { lockitHome, storePath } from "./paths.js";
 
-const prev = process.env.KV_HOME;
+const prev = process.env.LOCKIT_HOME;
 
 afterEach(() => {
-  if (prev === undefined) delete process.env.KV_HOME;
-  else process.env.KV_HOME = prev;
+  if (prev === undefined) delete process.env.LOCKIT_HOME;
+  else process.env.LOCKIT_HOME = prev;
 });
 
-describe("kvHome", () => {
-  it("returns $KV_HOME when set", () => {
-    process.env.KV_HOME = "/tmp/kv-test-home";
-    expect(kvHome()).toBe("/tmp/kv-test-home");
+describe("lockitHome", () => {
+  it("returns $LOCKIT_HOME when set", () => {
+    process.env.LOCKIT_HOME = "/tmp/kv-test-home";
+    expect(lockitHome()).toBe("/tmp/kv-test-home");
   });
 
-  it("returns ~/.kv when $KV_HOME is not set", () => {
-    delete process.env.KV_HOME;
-    expect(kvHome()).toBe(join(homedir(), ".kv"));
+  it("returns ~/.lockit when $LOCKIT_HOME is not set", () => {
+    delete process.env.LOCKIT_HOME;
+    expect(lockitHome()).toBe(join(homedir(), ".lockit"));
   });
 
-  it("treats an empty $KV_HOME as a set (defined) value per `??` semantics", () => {
+  it("treats an empty $LOCKIT_HOME as a set (defined) value per `??` semantics", () => {
     // Document the actual behavior of `??`: an empty string is defined, so it is
-    // returned verbatim rather than falling back to ~/.kv.
-    process.env.KV_HOME = "";
-    expect(kvHome()).toBe("");
+    // returned verbatim rather than falling back to ~/.lockit.
+    process.env.LOCKIT_HOME = "";
+    expect(lockitHome()).toBe("");
   });
 
   it("honors an absolute override path verbatim", () => {
-    process.env.KV_HOME = "/opt/secrets/kv";
-    expect(kvHome()).toBe("/opt/secrets/kv");
+    process.env.LOCKIT_HOME = "/opt/secrets/kv";
+    expect(lockitHome()).toBe("/opt/secrets/kv");
   });
 });
 
 describe("storePath", () => {
-  it("joins store.json onto $KV_HOME when set", () => {
-    process.env.KV_HOME = "/tmp/kv-test-home";
+  it("joins store.json onto $LOCKIT_HOME when set", () => {
+    process.env.LOCKIT_HOME = "/tmp/kv-test-home";
     expect(storePath()).toBe(join("/tmp/kv-test-home", "store.json"));
   });
 
-  it("is ~/.kv/store.json when $KV_HOME is not set", () => {
-    delete process.env.KV_HOME;
-    expect(storePath()).toBe(join(homedir(), ".kv", "store.json"));
+  it("is ~/.lockit/store.json when $LOCKIT_HOME is not set", () => {
+    delete process.env.LOCKIT_HOME;
+    expect(storePath()).toBe(join(homedir(), ".lockit", "store.json"));
   });
 
-  it("always equals join(kvHome(), 'store.json')", () => {
-    process.env.KV_HOME = "/var/data/kvhome";
-    expect(storePath()).toBe(join(kvHome(), "store.json"));
+  it("always equals join(lockitHome(), 'store.json')", () => {
+    process.env.LOCKIT_HOME = "/var/data/kvhome";
+    expect(storePath()).toBe(join(lockitHome(), "store.json"));
   });
 
   it("re-reads the environment on each call (override is dynamic)", () => {
-    process.env.KV_HOME = "/first";
+    process.env.LOCKIT_HOME = "/first";
     expect(storePath()).toBe(join("/first", "store.json"));
-    process.env.KV_HOME = "/second";
+    process.env.LOCKIT_HOME = "/second";
     expect(storePath()).toBe(join("/second", "store.json"));
   });
 });

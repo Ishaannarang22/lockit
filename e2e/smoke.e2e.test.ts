@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { runKv, withSandbox } from "./helpers.js";
+import { runVeyl, withSandbox } from "./helpers.js";
 
 const PW = "e2e-pass";
 
-describe("kv e2e smoke (real binary in a sandbox)", () => {
+describe("lockit e2e smoke (real binary in a sandbox)", () => {
   it("set (stdin) → ls (value-free) → run (masked)", async () => {
     await withSandbox(async (home) => {
       const secret = "sk-e2e-SECRET-0001";
 
-      const set = await runKv(home, ["set", "openai/dev", "OPENAI_API_KEY"], {
+      const set = await runVeyl(home, ["set", "openai/dev", "OPENAI_API_KEY"], {
         passphrase: PW,
         stdin: secret,
       });
@@ -16,13 +16,13 @@ describe("kv e2e smoke (real binary in a sandbox)", () => {
       expect(set.stdout).toContain("set openai/dev OPENAI_API_KEY (env)");
       expect(set.stdout).not.toContain(secret);
 
-      const ls = await runKv(home, ["ls"], { passphrase: PW });
+      const ls = await runVeyl(home, ["ls"], { passphrase: PW });
       expect(ls.code).toBe(0);
       expect(ls.stdout).toContain("openai/dev");
       expect(ls.stdout).toContain("OPENAI_API_KEY");
       expect(ls.stdout).not.toContain(secret);
 
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         [
           "run",

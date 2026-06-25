@@ -1,11 +1,14 @@
 {
-  "name": "@kv/cli",
-  "version": "0.0.0",
+  "name": "@lockit/cli",
+  "version": "0.1.0",
+  "description": "Local-first, AI-agent-safe developer secrets manager (CLI).",
+  "license": "Apache-2.0",
   "type": "module",
+  "publishConfig": { "access": "public" },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "kv": "./dist/index.js"
+    "lockit": "./dist/index.js"
   },
   "exports": {
     ".": {
@@ -21,6 +24,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json"
   },
   "dependencies": {
-    "@kv/core": "workspace:*"
+    "@lockit/core": "workspace:*"
   }
 }

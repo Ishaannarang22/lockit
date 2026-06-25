@@ -22,7 +22,7 @@ import {
 const fast = { iterations: 2, memorySize: 8192, parallelism: 1 };
 const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
 
-describe("@kv/crypto barrel: exported constants", () => {
+describe("@lockit/crypto barrel: exported constants", () => {
   it("re-exposes stable constants", () => {
     expect(BLOB_VERSION).toBe(1);
     expect(KEY_BYTES).toBe(32);
@@ -34,7 +34,7 @@ describe("@kv/crypto barrel: exported constants", () => {
   });
 });
 
-describe("@kv/crypto barrel: exported functions are present and callable", () => {
+describe("@lockit/crypto barrel: exported functions are present and callable", () => {
   const fns: Array<[string, unknown]> = [
     ["aeadSeal", aeadSeal],
     ["aeadOpen", aeadOpen],
@@ -76,7 +76,7 @@ describe("@kv/crypto barrel: exported functions are present and callable", () =>
   });
 });
 
-describe("@kv/crypto barrel: exports are functional end-to-end", () => {
+describe("@lockit/crypto barrel: exports are functional end-to-end", () => {
   it("re-exports a working passphrase seal/open round-trip", async () => {
     const blob = await sealWithPassphrase(enc("v"), "pw", fast);
     expect(new TextDecoder().decode(await openWithPassphrase(blob, "pw"))).toBe("v");

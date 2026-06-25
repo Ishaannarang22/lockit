@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 /** The real compiled binary the e2e suite drives as a black box. */
-export const KV_BIN = resolve(HERE, "../packages/cli/dist/index.js");
+export const LOCKIT_BIN = resolve(HERE, "../packages/cli/dist/index.js");
 
 export interface RunResult {
   stdout: string;
@@ -20,13 +20,13 @@ export interface RunOpts {
   env?: Record<string, string>;
 }
 
-/** Spawn the real `kv` binary in a sandbox HOME and capture stdout/stderr/exit.
+/** Spawn the real `lockit` binary in a sandbox HOME and capture stdout/stderr/exit.
  *  Black box: we only feed argv + stdin + env and observe outputs. */
-export function runKv(home: string, args: string[], opts: RunOpts = {}): Promise<RunResult> {
+export function runVeyl(home: string, args: string[], opts: RunOpts = {}): Promise<RunResult> {
   return new Promise((resolveP, reject) => {
-    const env: NodeJS.ProcessEnv = { ...process.env, KV_HOME: home, ...opts.env };
-    if (opts.passphrase !== undefined) env.KV_PASSPHRASE = opts.passphrase;
-    const child = spawn(process.execPath, [KV_BIN, ...args], { env });
+    const env: NodeJS.ProcessEnv = { ...process.env, LOCKIT_HOME: home, ...opts.env };
+    if (opts.passphrase !== undefined) env.LOCKIT_PASSPHRASE = opts.passphrase;
+    const child = spawn(process.execPath, [LOCKIT_BIN, ...args], { env });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (c: Buffer) => (stdout += c.toString("utf8")));
@@ -37,7 +37,7 @@ export function runKv(home: string, args: string[], opts: RunOpts = {}): Promise
   });
 }
 
-/** Create a disposable KV_HOME, run `fn`, then remove it — even on failure.
+/** Create a disposable LOCKIT_HOME, run `fn`, then remove it — even on failure.
  *  Each call is isolated, so e2e tests are safe to run in parallel. */
 export async function withSandbox<T>(fn: (home: string) => Promise<T>): Promise<T> {
   const home = await mkdtemp(join(tmpdir(), "kv-e2e-"));

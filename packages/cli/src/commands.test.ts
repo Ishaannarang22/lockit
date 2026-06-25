@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadStore, storePath } from "@kv/core";
+import { loadStore, storePath } from "@lockit/core";
 import { cmdLs, cmdRun, cmdSet, type Io } from "./commands.js";
 
 const SECRET = "sk-super-secret-1234567890";
@@ -41,24 +41,24 @@ async function run(
   return { code, out: cap.out, err: cap.err };
 }
 
-describe("kv cli commands", () => {
+describe("lockit cli commands", () => {
   let home: string;
   let prevHome: string | undefined;
   let prevPass: string | undefined;
 
   beforeEach(async () => {
     home = await mkdtemp(join(tmpdir(), "kv-cli-"));
-    prevHome = process.env.KV_HOME;
-    prevPass = process.env.KV_PASSPHRASE;
-    process.env.KV_HOME = home;
-    process.env.KV_PASSPHRASE = PASSPHRASE;
+    prevHome = process.env.LOCKIT_HOME;
+    prevPass = process.env.LOCKIT_PASSPHRASE;
+    process.env.LOCKIT_HOME = home;
+    process.env.LOCKIT_PASSPHRASE = PASSPHRASE;
   });
 
   afterEach(async () => {
-    if (prevHome === undefined) delete process.env.KV_HOME;
-    else process.env.KV_HOME = prevHome;
-    if (prevPass === undefined) delete process.env.KV_PASSPHRASE;
-    else process.env.KV_PASSPHRASE = prevPass;
+    if (prevHome === undefined) delete process.env.LOCKIT_HOME;
+    else process.env.LOCKIT_HOME = prevHome;
+    if (prevPass === undefined) delete process.env.LOCKIT_PASSPHRASE;
+    else process.env.LOCKIT_PASSPHRASE = prevPass;
     await rm(home, { recursive: true, force: true });
   });
 
@@ -144,14 +144,14 @@ describe("kv cli commands", () => {
     it("rejects missing slug AND key (no args) with usage on stderr, exit 1", async () => {
       const set = await run(cmdSet, [], "v\n");
       expect(set.code).toBe(1);
-      expect(set.err).toContain("usage: kv set <slug> <KEY>");
+      expect(set.err).toContain("usage: lockit set <slug> <KEY>");
       expect(set.out).toBe("");
     });
 
     it("rejects missing KEY (only slug given)", async () => {
       const set = await run(cmdSet, ["openai/dev"], "v\n");
       expect(set.code).toBe(1);
-      expect(set.err).toContain("usage: kv set <slug> <KEY>");
+      expect(set.err).toContain("usage: lockit set <slug> <KEY>");
     });
 
     it("--schema requires a following value (none provided) -> exit 1", async () => {
@@ -334,24 +334,24 @@ describe("kv cli commands", () => {
   // cmdSet: passphrase handling
   // ---------------------------------------------------------------------------
   describe("cmdSet — passphrase handling", () => {
-    it("returns 1 with a clear error when KV_PASSPHRASE is unset", async () => {
+    it("returns 1 with a clear error when LOCKIT_PASSPHRASE is unset", async () => {
       const env = { ...process.env };
-      delete env.KV_PASSPHRASE;
+      delete env.LOCKIT_PASSPHRASE;
       const set = await run(cmdSet, ["openai/dev", "K"], "v\n", env);
       expect(set.code).toBe(1);
-      expect(set.err).toContain("KV_PASSPHRASE is not set");
+      expect(set.err).toContain("LOCKIT_PASSPHRASE is not set");
       expect(set.out).toBe("");
     });
 
-    it("rejects an empty KV_PASSPHRASE", async () => {
-      const env = { ...process.env, KV_PASSPHRASE: "" };
+    it("rejects an empty LOCKIT_PASSPHRASE", async () => {
+      const env = { ...process.env, LOCKIT_PASSPHRASE: "" };
       const set = await run(cmdSet, ["openai/dev", "K"], "v\n", env);
       expect(set.code).toBe(1);
-      expect(set.err).toContain("KV_PASSPHRASE is not set");
+      expect(set.err).toContain("LOCKIT_PASSPHRASE is not set");
     });
 
     it("does not restrict passphrase length (a long passphrase works)", async () => {
-      const env = { ...process.env, KV_PASSPHRASE: "x".repeat(512) };
+      const env = { ...process.env, LOCKIT_PASSPHRASE: "x".repeat(512) };
       const set = await run(cmdSet, ["openai/dev", "K"], "v\n", env);
       expect(set.code).toBe(0);
       const store = await loadStore("x".repeat(512), storePath());
@@ -412,24 +412,24 @@ describe("kv cli commands", () => {
   // cmdLs: passphrase / error handling
   // ---------------------------------------------------------------------------
   describe("cmdLs — passphrase and error handling", () => {
-    it("returns 1 when KV_PASSPHRASE is unset", async () => {
+    it("returns 1 when LOCKIT_PASSPHRASE is unset", async () => {
       const env = { ...process.env };
-      delete env.KV_PASSPHRASE;
+      delete env.LOCKIT_PASSPHRASE;
       const ls = await run(cmdLs, [], "", env);
       expect(ls.code).toBe(1);
-      expect(ls.err).toContain("KV_PASSPHRASE is not set");
+      expect(ls.err).toContain("LOCKIT_PASSPHRASE is not set");
     });
 
-    it("rejects an empty KV_PASSPHRASE", async () => {
-      const env = { ...process.env, KV_PASSPHRASE: "" };
+    it("rejects an empty LOCKIT_PASSPHRASE", async () => {
+      const env = { ...process.env, LOCKIT_PASSPHRASE: "" };
       const ls = await run(cmdLs, [], "", env);
       expect(ls.code).toBe(1);
-      expect(ls.err).toContain("KV_PASSPHRASE is not set");
+      expect(ls.err).toContain("LOCKIT_PASSPHRASE is not set");
     });
 
     it("rejects a wrong passphrase with a clear error (rejected promise -> caught by index)", async () => {
       await run(cmdSet, ["openai/dev", "K"], `${SECRET}\n`);
-      const env = { ...process.env, KV_PASSPHRASE: "wrong-passphrase" };
+      const env = { ...process.env, LOCKIT_PASSPHRASE: "wrong-passphrase" };
       // cmdLs does not catch the loadStore rejection itself; index.ts is the
       // top-level catch. Here we assert the handler rejects with the clear msg.
       await expect(run(cmdLs, [], "", env)).rejects.toThrow(/wrong passphrase or corrupted/);
@@ -601,19 +601,19 @@ describe("kv cli commands", () => {
     it("requires a slug (none given) -> usage error, exit 1", async () => {
       const r = await run(cmdRun, []);
       expect(r.code).toBe(1);
-      expect(r.err).toContain("usage: kv run <slug> [--] <cmd> [args...]");
+      expect(r.err).toContain("usage: lockit run <slug> [--] <cmd> [args...]");
     });
 
     it("requires a command (slug only) -> usage error, exit 1", async () => {
       const r = await run(cmdRun, ["openai/dev"]);
       expect(r.code).toBe(1);
-      expect(r.err).toContain("usage: kv run <slug> [--] <cmd> [args...]");
+      expect(r.err).toContain("usage: lockit run <slug> [--] <cmd> [args...]");
     });
 
     it("requires a command after a bare -- -> usage error, exit 1", async () => {
       const r = await run(cmdRun, ["openai/dev", "--"]);
       expect(r.code).toBe(1);
-      expect(r.err).toContain("usage: kv run <slug> [--] <cmd> [args...]");
+      expect(r.err).toContain("usage: lockit run <slug> [--] <cmd> [args...]");
     });
 
     it("a missing slug is a hard error naming the slug, exit 1 (not ambiguous)", async () => {
@@ -672,12 +672,12 @@ describe("kv cli commands", () => {
       expect(r.err).not.toContain(SECRET);
     });
 
-    it("returns 1 when KV_PASSPHRASE is unset (before any spawn)", async () => {
+    it("returns 1 when LOCKIT_PASSPHRASE is unset (before any spawn)", async () => {
       const env = { ...process.env };
-      delete env.KV_PASSPHRASE;
+      delete env.LOCKIT_PASSPHRASE;
       const r = await run(cmdRun, ["openai/dev", "node", "-e", ""], "", env);
       expect(r.code).toBe(1);
-      expect(r.err).toContain("KV_PASSPHRASE is not set");
+      expect(r.err).toContain("LOCKIT_PASSPHRASE is not set");
     });
   });
 

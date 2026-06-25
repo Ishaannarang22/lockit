@@ -1,7 +1,10 @@
 {
-  "name": "@kv/crypto",
-  "version": "0.0.0",
+  "name": "@lockit/crypto",
+  "version": "0.1.0",
+  "description": "Pure, no-I/O cryptographic trust root for lockit.",
+  "license": "Apache-2.0",
   "type": "module",
+  "publishConfig": { "access": "public" },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },

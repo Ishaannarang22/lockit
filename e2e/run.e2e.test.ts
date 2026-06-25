@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { runKv, withSandbox } from "./helpers.js";
+import { runVeyl, withSandbox } from "./helpers.js";
 
 const PW = "e2e-run-pass";
 const SECRET = "sk-e2e-RUN-SECRET-abcdefghij";
 
 /** Seed a single env-type secret used by most run tests. */
 async function seed(home: string, key = "MYKEY", value = SECRET): Promise<void> {
-  const set = await runKv(home, ["set", "openai/dev", key], { passphrase: PW, stdin: value });
+  const set = await runVeyl(home, ["set", "openai/dev", key], { passphrase: PW, stdin: value });
   expect(set.code).toBe(0);
 }
 
-describe("kv run (e2e, real binary)", () => {
+describe("lockit run (e2e, real binary)", () => {
   it("injects the env var (child reads it) but masks it in kv's forwarded stdout", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         [
           "run",
@@ -36,7 +36,7 @@ describe("kv run (e2e, real binary)", () => {
   it("masks the value on the child's stderr too", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         ["run", "openai/dev", "--", "node", "-e", "process.stderr.write(process.env.MYKEY)"],
         { passphrase: PW },
@@ -50,7 +50,7 @@ describe("kv run (e2e, real binary)", () => {
   it("keeps the value masked when the child splits it across two timed writes", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         [
           "run",
@@ -70,9 +70,9 @@ describe("kv run (e2e, real binary)", () => {
 
   it("masks longest-first so a value that is a substring of another is fully covered", async () => {
     await withSandbox(async (home) => {
-      await runKv(home, ["set", "openai/dev", "SHORT"], { passphrase: PW, stdin: "abc" });
-      await runKv(home, ["set", "openai/dev", "LONG"], { passphrase: PW, stdin: "abcXYZ" });
-      const run = await runKv(
+      await runVeyl(home, ["set", "openai/dev", "SHORT"], { passphrase: PW, stdin: "abc" });
+      await runVeyl(home, ["set", "openai/dev", "LONG"], { passphrase: PW, stdin: "abcXYZ" });
+      const run = await runVeyl(
         home,
         [
           "run",
@@ -94,7 +94,7 @@ describe("kv run (e2e, real binary)", () => {
   it("preserves non-value output around the mask", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         [
           "run",
@@ -113,11 +113,11 @@ describe("kv run (e2e, real binary)", () => {
 
   it("does not inject file-type fields into the child env (v1: env-only)", async () => {
     await withSandbox(async (home) => {
-      await runKv(home, ["set", "openai/dev", "FILEFIELD", "--file"], {
+      await runVeyl(home, ["set", "openai/dev", "FILEFIELD", "--file"], {
         passphrase: PW,
         stdin: SECRET,
       });
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         [
           "run",
@@ -138,7 +138,7 @@ describe("kv run (e2e, real binary)", () => {
   it("works with the explicit -- separator", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         ["run", "openai/dev", "--", "node", "-e", "process.stdout.write('ok')"],
         { passphrase: PW },
@@ -151,7 +151,7 @@ describe("kv run (e2e, real binary)", () => {
   it("works with the no-'--' form", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         ["run", "openai/dev", "node", "-e", "process.stdout.write('ok')"],
         { passphrase: PW },
@@ -164,7 +164,7 @@ describe("kv run (e2e, real binary)", () => {
   it("propagates the child's own non-zero exit code (7)", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(home, ["run", "openai/dev", "node", "-e", "process.exit(7)"], {
+      const run = await runVeyl(home, ["run", "openai/dev", "node", "-e", "process.exit(7)"], {
         passphrase: PW,
       });
       expect(run.code).toBe(7);
@@ -174,7 +174,7 @@ describe("kv run (e2e, real binary)", () => {
   it("returns 137 for a SIGKILL-terminated child (128 + 9)", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         ["run", "openai/dev", "node", "-e", "process.kill(process.pid,'SIGKILL')"],
         { passphrase: PW },
@@ -186,7 +186,7 @@ describe("kv run (e2e, real binary)", () => {
   it("returns 143 for a SIGTERM-terminated child (128 + 15)", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         ["run", "openai/dev", "node", "-e", "process.kill(process.pid,'SIGTERM')"],
         { passphrase: PW },
@@ -197,7 +197,7 @@ describe("kv run (e2e, real binary)", () => {
 
   it("missing slug is a hard error naming the slug, exit 1", async () => {
     await withSandbox(async (home) => {
-      const run = await runKv(home, ["run", "nope/missing", "node", "-e", ""], { passphrase: PW });
+      const run = await runVeyl(home, ["run", "nope/missing", "node", "-e", ""], { passphrase: PW });
       expect(run.code).toBe(1);
       expect(run.stderr).toContain("no secret: nope/missing");
       expect(run.stdout).toBe("");
@@ -207,7 +207,7 @@ describe("kv run (e2e, real binary)", () => {
   it("does not prefix-match a slug (strict resolver): 'openai' != 'openai/dev'", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(home, ["run", "openai", "node", "-e", ""], { passphrase: PW });
+      const run = await runVeyl(home, ["run", "openai", "node", "-e", ""], { passphrase: PW });
       expect(run.code).toBe(1);
       expect(run.stderr).toContain("no secret: openai");
     });
@@ -216,7 +216,7 @@ describe("kv run (e2e, real binary)", () => {
   it("a spawn failure (command not found) is reported on stderr with exit 1", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(home, ["run", "openai/dev", "this-binary-does-not-exist-kv-e2e"], {
+      const run = await runVeyl(home, ["run", "openai/dev", "this-binary-does-not-exist-kv-e2e"], {
         passphrase: PW,
       });
       expect(run.code).toBe(1);
@@ -227,44 +227,44 @@ describe("kv run (e2e, real binary)", () => {
 
   it("usage error with no slug (exit 1)", async () => {
     await withSandbox(async (home) => {
-      const run = await runKv(home, ["run"], { passphrase: PW });
+      const run = await runVeyl(home, ["run"], { passphrase: PW });
       expect(run.code).toBe(1);
-      expect(run.stderr).toContain("usage: kv run <slug> [--] <cmd> [args...]");
+      expect(run.stderr).toContain("usage: lockit run <slug> [--] <cmd> [args...]");
     });
   });
 
   it("usage error with a slug but no command (exit 1)", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(home, ["run", "openai/dev"], { passphrase: PW });
+      const run = await runVeyl(home, ["run", "openai/dev"], { passphrase: PW });
       expect(run.code).toBe(1);
-      expect(run.stderr).toContain("usage: kv run <slug> [--] <cmd> [args...]");
+      expect(run.stderr).toContain("usage: lockit run <slug> [--] <cmd> [args...]");
     });
   });
 
   it("usage error with a bare -- and no command (exit 1)", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(home, ["run", "openai/dev", "--"], { passphrase: PW });
+      const run = await runVeyl(home, ["run", "openai/dev", "--"], { passphrase: PW });
       expect(run.code).toBe(1);
-      expect(run.stderr).toContain("usage: kv run <slug> [--] <cmd> [args...]");
+      expect(run.stderr).toContain("usage: lockit run <slug> [--] <cmd> [args...]");
     });
   });
 
-  it("missing KV_PASSPHRASE is a clear error with exit 1 (no spawn)", async () => {
+  it("missing LOCKIT_PASSPHRASE is a clear error with exit 1 (no spawn)", async () => {
     await withSandbox(async (home) => {
-      const run = await runKv(home, ["run", "openai/dev", "node", "-e", ""], {
-        env: { KV_PASSPHRASE: "" },
+      const run = await runVeyl(home, ["run", "openai/dev", "node", "-e", ""], {
+        env: { LOCKIT_PASSPHRASE: "" },
       });
       expect(run.code).toBe(1);
-      expect(run.stderr).toContain("KV_PASSPHRASE is not set");
+      expect(run.stderr).toContain("LOCKIT_PASSPHRASE is not set");
     });
   });
 
   it("a wrong passphrase refuses to decrypt before running anything (exit 1)", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         ["run", "openai/dev", "node", "-e", "process.stdout.write('SHOULD-NOT-RUN')"],
         { passphrase: "WRONG-passphrase" },
@@ -278,7 +278,7 @@ describe("kv run (e2e, real binary)", () => {
   it("the child inherits the parent env in addition to injected vars", async () => {
     await withSandbox(async (home) => {
       await seed(home);
-      const run = await runKv(
+      const run = await runVeyl(
         home,
         [
           "run",
@@ -295,21 +295,21 @@ describe("kv run (e2e, real binary)", () => {
   });
 });
 
-describe("kv entry point (e2e)", () => {
+describe("lockit entry point (e2e)", () => {
   it("an unrecognized command exits 1 and prints usage on stderr", async () => {
     await withSandbox(async (home) => {
-      const r = await runKv(home, ["frobnicate"], { passphrase: PW });
+      const r = await runVeyl(home, ["frobnicate"], { passphrase: PW });
       expect(r.code).toBe(1);
-      expect(r.stderr).toContain("usage: kv <set|ls|run>");
+      expect(r.stderr).toContain("usage: lockit <set|ls|run>");
       expect(r.stdout).toBe("");
     });
   });
 
   it("no command at all exits 1 and prints usage", async () => {
     await withSandbox(async (home) => {
-      const r = await runKv(home, [], { passphrase: PW });
+      const r = await runVeyl(home, [], { passphrase: PW });
       expect(r.code).toBe(1);
-      expect(r.stderr).toContain("usage: kv <set|ls|run>");
+      expect(r.stderr).toContain("usage: lockit <set|ls|run>");
     });
   });
 });
