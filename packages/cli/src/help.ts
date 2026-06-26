@@ -18,8 +18,9 @@ PROJECTS (per-project keys + admission)
   init                              Mark the current directory as a project.
   set <NAME>                        Create a PROJECT-LOCAL key (value via stdin) + bind it.
   admit <NAME...>                   Admit one or more stored keys (by name, in succession)
-                                    into this project: prompts once to confirm, then writes
-                                    them into ./.env (and adds .env to .gitignore).
+                                    into this project: one Touch ID / password confirmation
+                                    (terminal prompt where unavailable), then writes them
+                                    into ./.env (and adds .env to .gitignore).
   status                            This project's admitted keys, value-free.
   secure [on|off]                   View or set this project's mode. Default (off): admit
                                     writes real values to .env. Secure (on): admit writes

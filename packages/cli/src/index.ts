@@ -2,7 +2,7 @@
 import { cmdLs, cmdRun, cmdSet, type Io } from "./commands.js";
 import { cmdImport } from "./import.js";
 import { cmdPull } from "./pull.js";
-import { ttyAuthorize } from "./authorize.js";
+import { presenceAuthorize } from "./localauth.js";
 import { cmdCompleteList, cmdCompletion } from "./completion.js";
 import { cmdInstall } from "./install.js";
 import { cmdHelp } from "./help.js";
@@ -54,7 +54,7 @@ async function main(): Promise<number> {
       out,
       err,
       cwd: process.cwd(),
-      authorize: ttyAuthorize,
+      authorize: presenceAuthorize,
     };
     return await cmdAdmit(io);
   }
@@ -89,7 +89,7 @@ async function main(): Promise<number> {
       out,
       err,
       cwd: process.cwd(),
-      authorize: ttyAuthorize,
+      authorize: presenceAuthorize,
     };
     return await cmdPull(io);
   }

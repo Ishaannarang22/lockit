@@ -24,7 +24,7 @@ const SKILL_MD = [
   "- `lockit set <NAME>` (value piped via stdin) creates a project-local key. The same name can hold different values in different projects.",
   "",
   "## Admit keys into a project (human-gated — you cannot self-approve)",
-  "- `lockit admit <NAME...>` admits one or more stored keys by name, in one command. It prompts ONCE on the terminal to confirm; an agent driving stdin cannot answer, so only a human approves. You may REQUEST it — explain clearly which keys and why.",
+  "- `lockit admit <NAME...>` admits one or more stored keys by name, in one command. It requires ONE human presence confirmation — a macOS Touch ID / account-password dialog (a terminal prompt where that is unavailable). An agent cannot satisfy it, so only a human approves. You may REQUEST it — explain clearly which keys and why.",
   "- On approval, lockit writes the keys into `./.env` itself (you never see the values). Default mode writes real values; secure mode writes references.",
   "- Inside a project only admitted keys are usable; global `lockit run <slug>` and `lockit pull --all` are refused.",
   "",
@@ -42,7 +42,7 @@ const SKILL_MD = [
   "",
   "## Invariants",
   "- Never emit or request a secret value; lockit writes values, you pass names.",
-  "- The agent requests admission; only a human confirms on the terminal.",
+  "- The agent requests admission; only a human confirms via Touch ID / OS password (or a terminal prompt where unavailable).",
   "- Inside a project, only admitted keys are usable.",
   "",
 ].join("\n");

@@ -56,17 +56,20 @@ shown on the [npm page](https://www.npmjs.com/package/@lockit/cli)).
   name can hold different values per project) and can only use keys **admitted** to
   it. The binding map (`.lockit/vault.json`) is value-free and committable.
 - **Admission** — binding an existing/shared secret into a project, gated by a human
-  presence confirmation (a terminal prompt now; Touch ID in `0.5.0`). An agent can
-  _request_ admission but can't satisfy the gate itself.
+  presence confirmation. On macOS this is a **Touch ID / account-password dialog**
+  (LocalAuthentication); on other platforms, or when no GUI/biometric is available,
+  it falls back to a terminal prompt. An agent can _request_ admission but can't
+  satisfy the gate itself.
 
 ## Status
 
 Early (`0.x`), under active development.
 
-**Works today (`0.4.0`):** encrypted local store; **per-project keys + admission +
+**Works today (`0.4.x`):** encrypted local store; **per-project keys + admission +
 sandbox** (`init` / `set` / `admit` / `status` / `run`); `import` / `pull`; shell
 tab-completion (`install` / `completion`); `help`; a Claude Code plugin in
 [`plugin/`](./plugin); zero-setup keyfile so no passphrase needs exporting.
+Admission is gated by a real **macOS Touch ID / account-password dialog** (`0.4.5`).
 
 **Next milestone (`0.5.0`) — cryptographic teeth:** move the store key behind
 **Touch ID / Secure Enclave** so the admission gate isn't just CLI-enforced (see
