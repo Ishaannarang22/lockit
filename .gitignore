@@ -27,6 +27,9 @@ coverage/
 .env.*
 !.env.example
 
+# Never commit the npm publish token / local npm auth
+.npmrc
+
 # Never commit local private working files into the public repo
 docs/private/
 **/private-plans/
