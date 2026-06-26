@@ -40,6 +40,35 @@ describe("per-project keys + admission (e2e, real binary)", () => {
     });
   });
 
+  it("admit writes the chosen keys (in succession, by name) straight into .env and gitignores it", async () => {
+    await withSandbox(async (home) => {
+      const p = mkdtempSync(join(tmpdir(), "lockit-M-"));
+      try {
+        await runLockit(home, ["init"], { cwd: p });
+        // a global bundle with several fields (like an imported .env)
+        await runLockit(home, ["set", "pulse", "CARTESIA_API_KEY"], { stdin: "cart-123" });
+        await runLockit(home, ["set", "pulse", "DEEPGRAM_API_KEY"], { stdin: "deep-456" });
+        await runLockit(home, ["set", "pulse", "NVIDIA_API_KEY"], { stdin: "nv-789" });
+
+        // admit only the two I want, by name, in one command, gate bypassed for the test
+        const adm = await runLockit(home, ["admit", "CARTESIA_API_KEY", "DEEPGRAM_API_KEY"], {
+          cwd: p,
+          env: { LOCKIT_PULL_YES: "1" },
+        });
+        expect(adm.code).toBe(0);
+        expect(adm.stdout).not.toContain("cart-123"); // value-free stdout
+
+        const env = readFileSync(join(p, ".env"), "utf8");
+        expect(env).toContain("CARTESIA_API_KEY=cart-123");
+        expect(env).toContain("DEEPGRAM_API_KEY=deep-456");
+        expect(env).not.toContain("NVIDIA_API_KEY"); // only the ones I picked
+        expect(readFileSync(join(p, ".gitignore"), "utf8")).toContain(".env");
+      } finally {
+        rmSync(p, { recursive: true, force: true });
+      }
+    });
+  });
+
   it("inside a project, global 'run <slug>' and 'pull --all' are refused (no sandbox bypass)", async () => {
     await withSandbox(async (home) => {
       const p = mkdtempSync(join(tmpdir(), "lockit-S-"));

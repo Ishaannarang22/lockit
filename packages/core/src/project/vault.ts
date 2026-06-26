@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { lockitHome } from "../paths.js";
 
 /** A project's value-free binding map: ENV_VAR_NAME -> "slug#field". No values. */
 export interface Vault {
@@ -31,12 +32,22 @@ export function vaultRef(vault: Vault, name: string): string | undefined {
   return vault.bindings[name];
 }
 
-/** Nearest ancestor directory (including `startDir`) containing a `.lockit/`
- *  directory, or undefined if none up to the filesystem root. */
+/** Nearest ancestor directory (including `startDir`) that is a lockit project —
+ *  i.e. has a `.lockit/vault.json`. We key on the vault file, NOT just the
+ *  `.lockit/` directory, so the global store home (`~/.lockit/`, which holds
+ *  store.json + key but no vault.json) is never mistaken for a project root. */
 export function findProjectRoot(startDir: string): string | undefined {
+  const storeHome = resolve(lockitHome());
   let dir = startDir;
   for (;;) {
-    if (existsSync(join(dir, PROJECT_DIR))) return dir;
+    // Never treat the global store home as a project, even if a stray vault.json
+    // lands in it — the store dir and a project dir share the name `.lockit`.
+    if (
+      resolve(join(dir, PROJECT_DIR)) !== storeHome &&
+      existsSync(join(dir, PROJECT_DIR, "vault.json"))
+    ) {
+      return dir;
+    }
     const parent = dirname(dir);
     if (parent === dir) return undefined;
     dir = parent;

@@ -17,10 +17,12 @@ PROJECTS (per-project keys + admission)
 
   init                              Mark the current directory as a project.
   set <NAME>                        Create a PROJECT-LOCAL key (value via stdin) + bind it.
-  admit <slug|slug#field> [--as N]  Bind an existing/shared stored secret into this
-                                    project. Prompts for confirmation (the gate).
-  status                            This project's bound keys, value-free.
-  run -- <cmd> [args...]            Run a command with this project's admitted keys injected.
+  admit <NAME...>                   Admit one or more stored keys (by name, in succession)
+                                    into this project: prompts once to confirm, then writes
+                                    them into ./.env (and adds .env to .gitignore).
+  status                            This project's admitted keys, value-free.
+  run -- <cmd> [args...]            Run a command with this project's admitted keys injected
+                                    (in memory, masked — no .env file needed).
 
 COMMANDS (global store)
   set <slug> <KEY> [--schema <s>] [--file]
@@ -65,10 +67,10 @@ EXAMPLES
   lockit run stripe/prod -- node server.js
   # per-project
   lockit init
-  printf 'postgres://a' | lockit set DATABASE_URL      # project-local key
-  lockit admit stripe/prod#STRIPE_KEY                  # admit a shared secret (prompts)
+  printf 'postgres://a' | lockit set DATABASE_URL              # project-local key
+  lockit admit CARTESIA_API_KEY DEEPGRAM_API_KEY               # pick keys -> prompts -> writes ./.env
   lockit status
-  lockit run -- npm start                              # inject this project's keys
+  lockit run -- npm start                                      # or inject in memory, no .env
 
 Docs: https://www.npmjs.com/package/@lockit/cli
 `;

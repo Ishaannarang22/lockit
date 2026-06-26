@@ -67,21 +67,23 @@ lockit status                 # this project's keys, value-free
 lockit run -- npm start       # injects THIS project's DATABASE_URL
 ```
 
-**Admitting a shared secret** (reuse one stored secret across projects) is the
-gated action — it prompts on the terminal, which an agent driving stdin can't
-answer:
+**Admit the keys you want into a project.** `admit` takes one or more key names
+in succession, prompts once to confirm (an agent driving stdin can't answer), and
+**writes them straight into `./.env`** (mode `0600`, and adds `.env` to
+`.gitignore`):
 
 ```sh
-printf 'sk-live-abc' | lockit set openai/personal OPENAI_API_KEY   # once, globally
-cd ~/code/app-a
-lockit admit openai/personal           # prompts: Allow ... for this project? [y/N]
-lockit run -- npm start                # OPENAI_API_KEY now injected here
+lockit import ~/keys.env --as pulse                 # all your keys, stored once
+cd ~/code/app-a && lockit init
+lockit admit CARTESIA_API_KEY DEEPGRAM_API_KEY      # pick the ones you want -> writes ./.env
+# or use them without writing a file at all:
+lockit run -- npm start                             # injected in memory, masked
 ```
 
-Inside a project the sandbox is strict: `run -- <cmd>` and `pull <NAME>` only use
-**admitted** keys; the global `run <slug>` / `pull --all` are refused — admit
-first. The `name` lives per-project (in committable `.lockit/vault.json`,
-value-free); the value lives once in the global store.
+Inside a project the sandbox is strict: only **admitted** keys are usable; the
+global `run <slug>` / `pull --all` are refused. `admit` records a value-free
+binding in committable `.lockit/vault.json` **and** materializes the value into
+`.env`. Prefer `run -- <cmd>` when you don't need a `.env` on disk.
 
 ## Migrate an existing `.env`
 
@@ -99,7 +101,7 @@ lockit pull STRIPE_KEY DATABASE_URL    # asks to confirm first; --yes to skip
 | `init`                                                                          | Mark the current directory a project (creates `.lockit/`).                       |
 | `set <NAME>`                                                                    | In a project: create a **project-local** key (value via stdin) + bind it.        |
 | `set <slug> <KEY> [--schema <s>] [--file]`                                      | Store a field in the **global** store. VALUE is read from **stdin only**.        |
-| `admit <slug\|slug#field> [--as NAME]`                                          | Bind an existing/shared secret into this project. **Prompts to confirm.**        |
+| `admit <NAME...> [--as N] [--force]`                                            | Admit keys (by name, in succession) → confirm once → write them to `./.env`.     |
 | `status`                                                                        | This project's admitted keys, value-free.                                        |
 | `ls [--vars]`                                                                   | List global secrets, value-free. `--vars` lists individual variables.            |
 | `run -- <cmd> [args...]`                                                        | In a project: run `<cmd>` with the project's admitted keys injected, masked.     |
