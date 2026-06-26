@@ -9,6 +9,11 @@ export interface LoadStoreKeyDeps {
   readKeyfile: () => string | undefined;
   /** Whether keychain-backed protection is usable (macOS + Swift toolchain). */
   keychainAvailable: () => boolean;
+  /** Id of the current helper build (see keychainkey HELPER_ID). */
+  helperId: string;
+  /** Re-key a foreign keychain item (created by a different helper build) into a fresh,
+   *  current-bound item and update the marker — heals the keychain re-trust prompt. */
+  rekey: (service: string, oldAccount: string, key: string) => Promise<void>;
   /** Generate a fresh random store key (base64). */
   randomKey: () => string;
   /** Generate a fresh keychain account id. */
@@ -52,7 +57,15 @@ export async function loadStoreKey(deps: LoadStoreKeyDeps): Promise<string> {
   }
 
   const parsed = parseKeyfile(content);
-  if (parsed.kind === "keychain") return deps.unlock(parsed.service, parsed.account);
+  if (parsed.kind === "keychain") {
+    const key = await deps.unlock(parsed.service, parsed.account);
+    // If a different helper build created this item, reads prompt for a keychain
+    // re-trust. Re-key once into a fresh, current-bound item so it stops.
+    if (parsed.helper !== deps.helperId) {
+      await deps.rekey(parsed.service, parsed.account, key);
+    }
+    return key;
+  }
 
   // Legacy plaintext key. Migrate into the keychain if we can; never break access.
   if (deps.keychainAvailable()) {

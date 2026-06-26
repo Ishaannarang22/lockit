@@ -1,7 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { readKeyfile, keyPath, keychainMarker, writeKeyfileContent, parseKeyfile } from "./keyfile.js";
 import { protectKeyOn } from "./storekey.js";
-import { keychainWrap, keychainUnwrap, keychainDelete, keychainAvailable } from "./keychainkey.js";
+import {
+  keychainWrap,
+  keychainUnwrap,
+  keychainDelete,
+  keychainAvailable,
+  HELPER_ID,
+} from "./keychainkey.js";
 import { resolveKey, type Io } from "./commands.js";
 
 /** `lockit protect [status|on]` — the store key is protected by default (kept in the
@@ -55,7 +61,8 @@ export async function cmdProtect(io: Io): Promise<number> {
           wrap: keychainWrap,
           unwrap: keychainUnwrap,
           del: keychainDelete,
-          writeMarker: (service, account) => writeKeyfileContent(keychainMarker(service, account)),
+          writeMarker: (service, account) =>
+            writeKeyfileContent(keychainMarker(service, account, HELPER_ID)),
           newAccount: () => randomBytes(8).toString("hex"),
         });
       }

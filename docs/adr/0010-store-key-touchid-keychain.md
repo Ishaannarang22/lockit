@@ -83,6 +83,13 @@ store key / passphrase; Touch ID is the presence-and-authorization layer.
   key is keychain-protected the unlock *is* the presence proof, so the separate gate is
   skipped (cancelling the unlock still denies the action). The explicit gate remains for
   the plaintext / `LOCKIT_PASSPHRASE` case, where opening the store needs no auth.
+- **Self-healing helper re-trust** (`0.6.1`): a keychain item's ACL binds to the cdhash of
+  the binary that created it, so a changed helper build makes existing items "foreign" and
+  reads pop a keychain-password re-trust dialog. The marker now records `helper` (a hash of
+  the Swift source); on a mismatch the resolver re-keys once into a fresh, current-bound
+  item (the old foreign item can't be deleted in place, so it orphans — best-effort cleanup).
+  Costs one re-trust on the first read after a helper change, then silent. The helper source
+  is otherwise treated as frozen (see docs/mistakes-to-consider.md).
 - **Unlock session** (`0.6.0`): each `lockit` command is a separate process, so without
   caching a multi-command flow (an agent discovering + admitting a key) prompts Touch ID
   on every command. After one successful unwrap the released key is cached in a second

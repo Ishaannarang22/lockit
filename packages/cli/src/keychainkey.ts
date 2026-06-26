@@ -119,6 +119,12 @@ default:
 
 const SRC_HASH = createHash("sha256").update(KVKEY_SWIFT).digest("hex").slice(0, 12);
 
+/** Identifies the current helper build. A keychain item's ACL is bound to the binary
+ *  that created it, so when this changes (a new helper build after an upgrade) existing
+ *  items become "foreign" and reads prompt for a keychain re-trust. The marker records
+ *  the helper that created the item so we can re-key into a fresh, current-bound item. */
+export const HELPER_ID = SRC_HASH;
+
 function binDir(): string {
   return join(lockitHome(), "bin");
 }

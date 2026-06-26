@@ -11,7 +11,7 @@ export function keyPath(): string {
  *  says "the real key lives in the macOS keychain under this service/account". */
 export type ParsedKeyfile =
   | { kind: "plaintext"; key: string }
-  | { kind: "keychain"; service: string; account: string };
+  | { kind: "keychain"; service: string; account: string; helper?: string };
 
 const KEYCHAIN_PROTECTION = "keychain";
 
@@ -28,7 +28,8 @@ export function parseKeyfile(content: string): ParsedKeyfile {
         typeof j.service === "string" &&
         typeof j.account === "string"
       ) {
-        return { kind: "keychain", service: j.service, account: j.account };
+        const base = { kind: "keychain" as const, service: j.service, account: j.account };
+        return typeof j.helper === "string" ? { ...base, helper: j.helper } : base;
       }
     } catch {
       // not JSON → treat the raw bytes as a plaintext key
@@ -37,9 +38,11 @@ export function parseKeyfile(content: string): ParsedKeyfile {
   return { kind: "plaintext", key: trimmed };
 }
 
-/** The on-disk marker written when the key is moved into the keychain. */
-export function keychainMarker(service: string, account: string): string {
-  return `${JSON.stringify({ v: 1, protection: KEYCHAIN_PROTECTION, service, account })}\n`;
+/** The on-disk marker written when the key is moved into the keychain. `helper`
+ *  records which helper build created the item, so a later build can detect a
+ *  mismatch and re-key into a fresh, current-bound item (no keychain re-trust). */
+export function keychainMarker(service: string, account: string, helper?: string): string {
+  return `${JSON.stringify({ v: 1, protection: KEYCHAIN_PROTECTION, service, account, helper })}\n`;
 }
 
 /** Read the keyfile if it exists. Returns its trimmed contents (a plaintext key, or

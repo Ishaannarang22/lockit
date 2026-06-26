@@ -4,6 +4,30 @@ Hard-won gotchas that have actually bitten us. Read before doing the matching ta
 
 ---
 
+## Never change the Swift keychain helper source (`KVKEY_SWIFT`) casually
+
+**The mistake (`0.6.0`):** adding a `peek` command to the embedded Swift helper
+(`packages/cli/src/keychainkey.ts`).
+
+A macOS keychain item's ACL is bound to the **code identity (cdhash) of the binary that
+created it**. The helper binary is compiled from the `KVKEY_SWIFT` source and cached by a
+hash of that source. So **any byte change to `KVKEY_SWIFT` changes the cdhash**, and every
+existing user's store-key item becomes "foreign" — the next read pops a scary macOS
+*"kvkey-… wants to use your login keychain, enter your password"* dialog (Always Allow /
+Deny / Allow). Clicking "Allow" (not "Always Allow") re-prompts every time.
+
+Rules:
+- **Treat `KVKEY_SWIFT` as frozen.** Don't touch it for cleanups/refactors. If you MUST
+  change it, you are forcing a keychain re-trust on every existing user.
+- The marker records `helper` (= `HELPER_ID`, a hash of the source). On a mismatch the key
+  resolver **re-keys once** into a fresh, current-bound item to self-heal — but that still
+  costs the user one re-trust prompt (the unwrap that reads the old item before re-keying),
+  plus one orphaned keychain item (a foreign item can't be deleted in place — `SecItemDelete`
+  fails, then `SecItemAdd` returns `-25299 already exists`; re-key to a NEW account instead).
+- Net: changing the helper is a user-visible, mildly alarming event. Avoid it.
+
+---
+
 ## Publishing to npm — ALWAYS use `pnpm publish`, NEVER `npm publish`
 
 **The mistake (happened on `@lockit/cli@0.4.5`):** publishing with `npm publish`.

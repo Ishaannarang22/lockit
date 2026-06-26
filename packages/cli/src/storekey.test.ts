@@ -22,6 +22,8 @@ function baseDeps(over: Partial<Parameters<typeof loadStoreKey>[0]> = {}) {
     keychainAvailable: vi.fn(() => true),
     randomKey: vi.fn(() => "fresh-random-key"),
     newAccount: vi.fn(() => "acct-1"),
+    helperId: "helperA",
+    rekey: vi.fn(async () => {}),
     wrap: vi.fn(async () => true),
     unwrap: vi.fn(async () => "unwrapped"),
     unlock: vi.fn(async () => "unlocked"),
@@ -56,11 +58,32 @@ describe("loadStoreKey — protected by default", () => {
 
   it("unlocks (session-aware) when the keyfile is a keychain marker", async () => {
     const deps = baseDeps({
-      readKeyfile: () => JSON.stringify({ protection: "keychain", service: "s", account: "a" }),
+      readKeyfile: () =>
+        JSON.stringify({ protection: "keychain", service: "s", account: "a", helper: "helperA" }),
       unlock: vi.fn(async () => "from-keychain"),
     });
     expect(await loadStoreKey(deps)).toBe("from-keychain");
     expect(deps.unlock).toHaveBeenCalledWith("s", "a");
+    expect(deps.rekey).not.toHaveBeenCalled(); // helper matches → no re-key
+  });
+
+  it("re-keys ONCE when the marker's helper differs from the current helper (heals re-trust)", async () => {
+    const deps = baseDeps({
+      readKeyfile: () =>
+        JSON.stringify({ protection: "keychain", service: "s", account: "old", helper: "helperOLD" }),
+      unlock: vi.fn(async () => "the-key"),
+    });
+    expect(await loadStoreKey(deps)).toBe("the-key");
+    expect(deps.rekey).toHaveBeenCalledWith("s", "old", "the-key");
+  });
+
+  it("re-keys when the marker has no helper recorded (pre-0.6.1 protected key)", async () => {
+    const deps = baseDeps({
+      readKeyfile: () => JSON.stringify({ protection: "keychain", service: "s", account: "old" }),
+      unlock: vi.fn(async () => "the-key"),
+    });
+    await loadStoreKey(deps);
+    expect(deps.rekey).toHaveBeenCalledWith("s", "old", "the-key");
   });
 
   it("auto-migrates a legacy plaintext key into the keychain (verified) on next use", async () => {

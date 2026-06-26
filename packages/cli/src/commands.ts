@@ -27,8 +27,9 @@ import {
   keychainDelete,
   keychainPeek,
   keychainAvailable,
+  HELPER_ID,
 } from "./keychainkey.js";
-import { unlockWithSession, ttlMsFromEnv } from "./session.js";
+import { unlockWithSession, ttlMsFromEnv, sessionAccount } from "./session.js";
 
 /** The injected IO surface every handler talks to — no direct `process.std*`,
  *  so handlers stay pure-ish and unit-testable with a fake IO. */
@@ -55,6 +56,16 @@ export async function resolveKey(io: Io): Promise<string> {
     env: io.env,
     readKeyfile,
     keychainAvailable,
+    helperId: HELPER_ID,
+    rekey: async (service, oldAccount, key) => {
+      // Re-store under a fresh account created by the CURRENT helper, point the marker
+      // at it, then best-effort drop the old (foreign, undeletable-in-place) items.
+      const newAccount = randomBytes(8).toString("hex");
+      await keychainWrap(service, newAccount, key);
+      writeKeyfileContent(keychainMarker(service, newAccount, HELPER_ID));
+      await keychainDelete(service, oldAccount).catch(() => undefined);
+      await keychainDelete(service, sessionAccount(oldAccount)).catch(() => undefined);
+    },
     randomKey: () => randomBytes(32).toString("base64"),
     newAccount: () => randomBytes(8).toString("hex"),
     wrap: keychainWrap,
@@ -69,7 +80,8 @@ export async function resolveKey(io: Io): Promise<string> {
         writeSession: (s, a, value) => keychainWrap(s, a, value).then(() => undefined),
       }),
     del: keychainDelete,
-    writeMarker: (service, account) => writeKeyfileContent(keychainMarker(service, account)),
+    writeMarker: (service, account) =>
+      writeKeyfileContent(keychainMarker(service, account, HELPER_ID)),
     warn: (msg) => io.err(msg),
   });
 }
