@@ -21,7 +21,7 @@ function slugifyDir(name: string): string {
 
 /** `lockit import [path] [--as <slug>]` — read a .env into the encrypted store. */
 export async function cmdImport(io: Io): Promise<number> {
-  const passphrase = resolveKey(io);
+  const passphrase = await resolveKey(io);
 
   let path: string | undefined;
   let slug: string | undefined;

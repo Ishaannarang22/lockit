@@ -19,6 +19,8 @@ import {
 } from "@lockit/core";
 import type { FieldType } from "@lockit/core";
 import { loadOrCreateKey } from "./keyfile.js";
+import { loadKey } from "./storekey.js";
+import { keychainUnwrap } from "./keychainkey.js";
 
 /** The injected IO surface every handler talks to — no direct `process.std*`,
  *  so handlers stay pure-ish and unit-testable with a fake IO. */
@@ -36,12 +38,12 @@ export interface Io {
   authorize?: (prompt?: string) => Promise<boolean>;
 }
 
-/** The store key: `LOCKIT_PASSPHRASE` if explicitly set (override), otherwise
- *  the auto-managed machine-local keyfile. Never prompts; never fails. */
-export function resolveKey(io: Io): string {
-  const env = io.env.LOCKIT_PASSPHRASE;
-  if (env !== undefined && env.length > 0) return env;
-  return loadOrCreateKey();
+/** The store key: `LOCKIT_PASSPHRASE` if explicitly set (override), otherwise the
+ *  auto-managed machine-local keyfile. If the keyfile has been protected (`lockit
+ *  protect`), this triggers a Touch ID / account-password unwrap from the keychain;
+ *  otherwise it never prompts. */
+export async function resolveKey(io: Io): Promise<string> {
+  return loadKey({ env: io.env, readKeyfile: loadOrCreateKey, unwrap: keychainUnwrap });
 }
 
 /** Strip exactly one trailing newline ("\n" or "\r\n") so a piped value isn't
@@ -56,7 +58,7 @@ function trimOneTrailingNewline(value: string): string {
  *  The VALUE is read from stdin only — never from argv — so it never lands in
  *  process listings, shell history, or the args of a spawned process. */
 export async function cmdSet(io: Io): Promise<number> {
-  const passphrase = resolveKey(io);
+  const passphrase = await resolveKey(io);
 
   const positional: string[] = [];
   let schema: string | undefined;
@@ -130,7 +132,7 @@ export async function cmdSet(io: Io): Promise<number> {
 /** `lockit ls` — one value-free line per secret: `<slug>  [<schema>]  <KEY1>,<KEY2>`.
  *  Prints structure (slug/schema/field keys) only, never a value. */
 export async function cmdLs(io: Io): Promise<number> {
-  const passphrase = resolveKey(io);
+  const passphrase = await resolveKey(io);
 
   const store = await loadStore(passphrase, storePath());
 
@@ -226,7 +228,7 @@ function spawnMasked(io: Io, cmd: string[], injected: Record<string, string>): P
  *  `lockit run <slug> [--] <cmd>` (global: inject one secret's fields). Both
  *  decrypt in memory and mask injected values in the child's output. */
 export async function cmdRun(io: Io): Promise<number> {
-  const passphrase = resolveKey(io);
+  const passphrase = await resolveKey(io);
 
   // Project mode: `run -- cmd ...` — inject the current project's vault bindings.
   if (io.argv[0] === "--") {

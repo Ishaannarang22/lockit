@@ -72,7 +72,7 @@ export async function cmdPull(io: Io): Promise<number> {
 
   let store;
   try {
-    store = await loadStore(resolveKey(io), storePath());
+    store = await loadStore(await resolveKey(io), storePath());
   } catch {
     io.err("could not open the store; nothing written\n");
     return 1;

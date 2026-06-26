@@ -29,6 +29,12 @@ PROJECTS (per-project keys + admission)
   run -- <cmd> [args...]            Run a command with this project's admitted keys injected
                                     (in memory, masked — no .env file needed).
 
+COMMANDS (machine)
+  protect [on|off|status]           Protect the store key with Touch ID (macOS). 'on' moves
+                                    the key off the plaintext file into the keychain; lockit
+                                    then asks for Touch ID / your password to use the store.
+                                    'off' moves it back. Default sub: status.
+
 COMMANDS (global store)
   set <slug> <KEY> [--schema <s>] [--file]
         Store a secret field in the global store. The VALUE is read from STDIN
@@ -58,7 +64,8 @@ COMMANDS (global store)
 SETUP
   None. On first use lockit creates an encrypted store at ~/.lockit/store.json
   and a machine-local key at ~/.lockit/key (both mode 0600). Set LOCKIT_PASSPHRASE
-  to use your own key instead of the auto-generated one.
+  to use your own key instead of the auto-generated one. On macOS, run
+  'lockit protect on' to move that key into the keychain behind Touch ID.
 
 CONFIG (environment variables)
   LOCKIT_HOME        Store + key directory (default: ~/.lockit)

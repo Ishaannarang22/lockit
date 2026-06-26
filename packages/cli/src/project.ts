@@ -145,7 +145,7 @@ export async function cmdStatus(io: Io): Promise<number> {
     io.out("no keys admitted to this project\n");
     return 0;
   }
-  const store = await loadStore(resolveKey(io), storePath());
+  const store = await loadStore(await resolveKey(io), storePath());
   for (const name of names) {
     const r = resolveBinding(store, vault, name);
     io.out(`${name}  ->  ${vault.bindings[name]}  [${r.status}]\n`);
@@ -188,7 +188,7 @@ export async function cmdAdmit(io: Io): Promise<number> {
     return 1;
   }
 
-  const store = await loadStore(resolveKey(io), storePath());
+  const store = await loadStore(await resolveKey(io), storePath());
 
   // Resolve every requested key BEFORE prompting; any failure aborts, nothing changes.
   const items: AdmitItem[] = [];

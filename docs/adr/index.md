@@ -36,3 +36,4 @@ Every ADR follows the same structure:
 | [0007](0007-project-world-sandbox-human-gated-admission.md) | Project-world sandbox + human-gated admission                       | Accepted |
 | [0008](0008-no-account-recovery-in-v1.md)                   | No account recovery in v1                                           | Accepted |
 | [0009](0009-local-unlock-model.md)                          | Local unlock model: passphrase root + Touch-ID-gated keychain cache | Accepted |
+| [0010](0010-store-key-touchid-keychain.md)                  | Protect the store key with the macOS keychain behind Touch ID       | Accepted |

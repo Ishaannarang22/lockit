@@ -65,18 +65,23 @@ shown on the [npm page](https://www.npmjs.com/package/@lockit/cli)).
 
 Early (`0.x`), under active development.
 
-**Works today (`0.4.x`):** encrypted local store; **per-project keys + admission +
+**Works today (`0.5.0`):** encrypted local store; **per-project keys + admission +
 sandbox** (`init` / `set` / `admit` / `status` / `run`); `import` / `pull`; shell
 tab-completion (`install` / `completion`); `help`; a Claude Code plugin in
 [`plugin/`](./plugin); zero-setup keyfile so no passphrase needs exporting.
 Admission is gated by a real **macOS Touch ID / account-password dialog** (`0.4.5`).
+**`lockit protect on`** (`0.5.0`, macOS) moves the store key off the plaintext file
+into the **keychain behind Touch ID** — so reading `~/.lockit/key` no longer yields a
+usable key, and every store access needs your fingerprint or password. See
+[ADR-0010](./docs/adr/0010-store-key-touchid-keychain.md).
 
-**Next milestone (`0.5.0`) — cryptographic teeth:** move the store key behind
-**Touch ID / Secure Enclave** so the admission gate isn't just CLI-enforced (see
-[ADR-0007](./docs/adr/0007-project-world-sandbox-human-gated-admission.md) and
-[ADR-0009](./docs/adr/0009-local-unlock-model.md)). Until then the auto keyfile sits
-on disk, so a process running as you can read `~/.lockit` or hand-edit a project
-vault and bypass the gate — documented, not hidden.
+**Honest limit (and the cloud plan):** `protect` is a real, opt-in improvement, but
+it is an **authorization gate, not a hardware key release** — true Secure Enclave /
+non-extractable keys require an Apple Developer signing identity + notarization, which
+an npm-distributed CLI invoking the system `swift` cannot have ([ADR-0010](./docs/adr/0010-store-key-touchid-keychain.md)
+documents the tested `errSecMissingEntitlement` wall). The hardware-bound version, and
+a website-login-gated unlock for the upcoming team **cloud** sync, are the next steps —
+documented, not hidden.
 
 ## Packages
 

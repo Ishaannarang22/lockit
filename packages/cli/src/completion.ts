@@ -22,7 +22,7 @@ export function completionCandidates(store: StoreData): string[] {
 export async function cmdCompleteList(io: Io): Promise<number> {
   let store: StoreData;
   try {
-    store = await loadStore(resolveKey(io), storePath());
+    store = await loadStore(await resolveKey(io), storePath());
   } catch {
     return 0;
   }
