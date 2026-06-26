@@ -35,6 +35,9 @@ COMMANDS (machine)
                                     'status' reports; 'on' migrates a legacy plaintext key
                                     now instead of on next use. Protection can't be disabled
                                     (use LOCKIT_PASSPHRASE to manage your own key).
+  lock                              Clear the unlock session now, so the next command
+                                    re-prompts for Touch ID. One Touch ID otherwise unlocks
+                                    for LOCKIT_UNLOCK_TTL seconds (default 90).
 
 COMMANDS (global store)
   set <slug> <KEY> [--schema <s>] [--file]
@@ -71,7 +74,9 @@ SETUP
 
 CONFIG (environment variables)
   LOCKIT_HOME        Store + key directory (default: ~/.lockit)
-  LOCKIT_PASSPHRASE  Optional override key instead of the auto keyfile
+  LOCKIT_PASSPHRASE  Optional override key instead of the keychain-protected key
+  LOCKIT_UNLOCK_TTL  Seconds one Touch ID unlock lasts before re-prompting (default 90;
+                     0 = prompt every command). Clear early with 'lockit lock'.
   LOCKIT_PULL_YES=1  Skip the pull confirmation (non-interactive)
 
 EXAMPLES

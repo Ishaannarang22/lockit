@@ -73,8 +73,10 @@ Admission is gated by a real **macOS Touch ID / account-password dialog** (`0.4.
 **The store key is protected by default** (`0.5.1`, macOS): it is created in the
 **keychain behind Touch ID** on first use and **never written as a plaintext file** —
 `~/.lockit/key` holds only a value-free marker, so reading it yields nothing usable and
-every store access needs your fingerprint or password. Set `LOCKIT_PASSPHRASE` to manage
-your own key instead. See [ADR-0010](./docs/adr/0010-store-key-touchid-keychain.md).
+store access needs your fingerprint or password. One unlock lasts ~90s by default
+(`LOCKIT_UNLOCK_TTL`; `lockit lock` clears it), so a short run of commands prompts once,
+not every time. Set `LOCKIT_PASSPHRASE` to manage your own key instead. See
+[ADR-0010](./docs/adr/0010-store-key-touchid-keychain.md).
 
 **Honest limit (and the cloud plan):** `protect` is a real, opt-in improvement, but
 it is an **authorization gate, not a hardware key release** — true Secure Enclave /

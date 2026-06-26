@@ -24,6 +24,7 @@ function baseDeps(over: Partial<Parameters<typeof loadStoreKey>[0]> = {}) {
     newAccount: vi.fn(() => "acct-1"),
     wrap: vi.fn(async () => true),
     unwrap: vi.fn(async () => "unwrapped"),
+    unlock: vi.fn(async () => "unlocked"),
     del: vi.fn(async () => {}),
     writeMarker: vi.fn(),
     warn: vi.fn(),
@@ -53,13 +54,13 @@ describe("loadStoreKey — protected by default", () => {
     expect(deps.wrap).not.toHaveBeenCalled();
   });
 
-  it("unwraps via Touch ID when the keyfile is a keychain marker", async () => {
+  it("unlocks (session-aware) when the keyfile is a keychain marker", async () => {
     const deps = baseDeps({
       readKeyfile: () => JSON.stringify({ protection: "keychain", service: "s", account: "a" }),
-      unwrap: vi.fn(async () => "from-keychain"),
+      unlock: vi.fn(async () => "from-keychain"),
     });
     expect(await loadStoreKey(deps)).toBe("from-keychain");
-    expect(deps.unwrap).toHaveBeenCalledWith("s", "a");
+    expect(deps.unlock).toHaveBeenCalledWith("s", "a");
   });
 
   it("auto-migrates a legacy plaintext key into the keychain (verified) on next use", async () => {

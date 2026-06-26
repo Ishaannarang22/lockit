@@ -91,6 +91,20 @@ case "unwrap":
     FileHandle.standardOutput.write(data)
     exit(0)
 
+case "peek":
+    // No-auth read for the unlock-session cache. Not-found -> exit 4 (so the caller
+    // just misses the cache instead of erroring). Bound to this binary's identity.
+    var pq = baseQuery()
+    pq[kSecReturnData as String] = true
+    pq[kSecMatchLimit as String] = kSecMatchLimitOne
+    var pout: CFTypeRef?
+    let pst = SecItemCopyMatching(pq as CFDictionary, &pout)
+    if pst == errSecItemNotFound { exit(4) }
+    if pst != errSecSuccess { die(1, "peek failed: OSStatus \\(pst)") }
+    guard let pdata = pout as? Data else { die(1, "unexpected keychain payload") }
+    FileHandle.standardOutput.write(pdata)
+    exit(0)
+
 case "delete":
     let st = SecItemDelete(baseQuery() as CFDictionary)
     if st != errSecSuccess && st != errSecItemNotFound {
@@ -200,4 +214,15 @@ export async function keychainUnwrap(service: string, account: string): Promise<
 export async function keychainDelete(service: string, account: string): Promise<void> {
   const r = await run(["delete", service, account]);
   if (r.code !== 0) throw new Error(r.stderr.trim() || "keychain delete failed");
+}
+
+/** Read a cached value WITHOUT Touch ID (for the unlock-session cache). Returns
+ *  undefined if absent or unreadable — the caller then falls back to a real unwrap. */
+export async function keychainPeek(service: string, account: string): Promise<string | undefined> {
+  try {
+    const r = await run(["peek", service, account]);
+    return r.code === 0 ? r.stdout.toString("utf8") : undefined;
+  } catch {
+    return undefined;
+  }
 }

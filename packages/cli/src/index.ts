@@ -8,9 +8,10 @@ import { cmdInstall } from "./install.js";
 import { cmdHelp } from "./help.js";
 import { cmdInit, cmdAdmit, cmdStatus, cmdSecure } from "./project.js";
 import { cmdProtect } from "./protect.js";
+import { cmdLock } from "./lock.js";
 
 const USAGE =
-  "usage: lockit <init|set|admit|status|secure|protect|ls|run|import|pull|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
+  "usage: lockit <init|set|admit|status|secure|protect|lock|ls|run|import|pull|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
 
 /** Read all of stdin to a string. Only `set` needs the value, so we read lazily. */
 async function readStdin(): Promise<string> {
@@ -50,6 +51,10 @@ async function main(): Promise<number> {
   if (command === "protect") {
     const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
     return await cmdProtect(io);
+  }
+  if (command === "lock") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
+    return await cmdLock(io);
   }
   if (command === "admit") {
     const io: Io = {

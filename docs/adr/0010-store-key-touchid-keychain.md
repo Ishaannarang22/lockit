@@ -83,6 +83,15 @@ store key / passphrase; Touch ID is the presence-and-authorization layer.
   key is keychain-protected the unlock *is* the presence proof, so the separate gate is
   skipped (cancelling the unlock still denies the action). The explicit gate remains for
   the plaintext / `LOCKIT_PASSPHRASE` case, where opening the store needs no auth.
+- **Unlock session** (`0.6.0`): each `lockit` command is a separate process, so without
+  caching a multi-command flow (an agent discovering + admitting a key) prompts Touch ID
+  on every command. After one successful unwrap the released key is cached in a second
+  keychain item (`<account>.session`), read without re-auth via a no-auth `peek` and
+  bound to the helper binary, with an embedded expiry. Default window 90s
+  (`LOCKIT_UNLOCK_TTL` seconds; `0` disables); `lockit lock` clears it. Tradeoff (the
+  reason the window is short and configurable): within the window a process running as
+  you can use the key without a fresh touch — the sudo-timestamp / ssh-agent model. The
+  key is still never on disk in plaintext; the session copy lives in the keychain.
 - Requires macOS + Xcode Command Line Tools (`swiftc`); otherwise lockit refuses to
   create a key and asks for `LOCKIT_PASSPHRASE` (it will not write plaintext). Existing
   plaintext keyfiles are still read on non-macOS for backward compatibility (with a warning).

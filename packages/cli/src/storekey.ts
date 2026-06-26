@@ -15,6 +15,8 @@ export interface LoadStoreKeyDeps {
   newAccount: () => string;
   wrap: (service: string, account: string, secret: string) => Promise<boolean>;
   unwrap: (service: string, account: string) => Promise<string>;
+  /** Session-aware unlock for the normal read path (reuses a recent Touch ID). */
+  unlock: (service: string, account: string) => Promise<string>;
   del: (service: string, account: string) => Promise<void>;
   writeMarker: (service: string, account: string) => void;
   warn?: (msg: string) => void;
@@ -50,7 +52,7 @@ export async function loadStoreKey(deps: LoadStoreKeyDeps): Promise<string> {
   }
 
   const parsed = parseKeyfile(content);
-  if (parsed.kind === "keychain") return deps.unwrap(parsed.service, parsed.account);
+  if (parsed.kind === "keychain") return deps.unlock(parsed.service, parsed.account);
 
   // Legacy plaintext key. Migrate into the keychain if we can; never break access.
   if (deps.keychainAvailable()) {

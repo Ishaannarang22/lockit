@@ -39,7 +39,7 @@ const SKILL_MD = [
   "## Notes",
   "- If a plaintext `.env` in a git repo is not gitignored, lockit warns — add `.env` to `.gitignore`.",
   "- Avoid `lockit pull` for agent work; it writes plaintext to disk. Prefer admit + `run`.",
-  "- By default (macOS) the store key lives in the keychain behind Touch ID; store commands will pause for the user's fingerprint/password. This is expected — do not try to bypass it. You cannot read the key.",
+  "- By default (macOS) the store key lives in the keychain behind Touch ID; store commands will pause for the user's fingerprint/password. This is expected — do not try to bypass it. You cannot read the key. One unlock lasts ~90s (LOCKIT_UNLOCK_TTL), so a short run of commands prompts once, not every time.",
   "",
   "## Invariants",
   "- Never emit or request a secret value; lockit writes values, you pass names.",

@@ -21,7 +21,14 @@ import type { FieldType } from "@lockit/core";
 import { randomBytes } from "node:crypto";
 import { readKeyfile, keychainMarker, writeKeyfileContent } from "./keyfile.js";
 import { loadStoreKey } from "./storekey.js";
-import { keychainWrap, keychainUnwrap, keychainDelete, keychainAvailable } from "./keychainkey.js";
+import {
+  keychainWrap,
+  keychainUnwrap,
+  keychainDelete,
+  keychainPeek,
+  keychainAvailable,
+} from "./keychainkey.js";
+import { unlockWithSession, ttlMsFromEnv } from "./session.js";
 
 /** The injected IO surface every handler talks to — no direct `process.std*`,
  *  so handlers stay pure-ish and unit-testable with a fake IO. */
@@ -43,6 +50,7 @@ export interface Io {
  *  the key lives in the macOS keychain (created there on first use, never as a
  *  plaintext file) and is released by a Touch ID / account-password unwrap. */
 export async function resolveKey(io: Io): Promise<string> {
+  const ttlMs = ttlMsFromEnv(io.env);
   return loadStoreKey({
     env: io.env,
     readKeyfile,
@@ -51,6 +59,15 @@ export async function resolveKey(io: Io): Promise<string> {
     newAccount: () => randomBytes(8).toString("hex"),
     wrap: keychainWrap,
     unwrap: keychainUnwrap,
+    // Normal reads go through the unlock session (one Touch ID, reused for the window).
+    unlock: (service, account) =>
+      unlockWithSession(service, account, {
+        ttlMs,
+        now: () => Date.now(),
+        peek: keychainPeek,
+        unwrap: keychainUnwrap,
+        writeSession: (s, a, value) => keychainWrap(s, a, value).then(() => undefined),
+      }),
     del: keychainDelete,
     writeMarker: (service, account) => writeKeyfileContent(keychainMarker(service, account)),
     warn: (msg) => io.err(msg),
