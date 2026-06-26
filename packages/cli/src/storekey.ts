@@ -69,6 +69,20 @@ export async function loadStoreKey(deps: LoadStoreKeyDeps): Promise<string> {
   return parsed.key;
 }
 
+/** Whether merely *using* the store already requires a live OS authentication — i.e.
+ *  the key is keychain-protected and not overridden by LOCKIT_PASSPHRASE. When true, a
+ *  command that unlocks the store has already proven human presence, so a SECOND
+ *  presence prompt (e.g. the admission gate) is redundant and should be skipped. */
+export function isKeychainProtected(
+  env: NodeJS.ProcessEnv,
+  readKeyfile: () => string | undefined,
+): boolean {
+  const passphrase = env.LOCKIT_PASSPHRASE;
+  if (passphrase !== undefined && passphrase.length > 0) return false;
+  const content = readKeyfile();
+  return content !== undefined && parseKeyfile(content).kind === "keychain";
+}
+
 export interface ProtectOnOps {
   wrap: (service: string, account: string, secret: string) => Promise<boolean>;
   unwrap: (service: string, account: string) => Promise<string>;

@@ -13,6 +13,8 @@ import {
   type DotenvEntry,
 } from "@lockit/core";
 import { resolveKey, type Io } from "./commands.js";
+import { readKeyfile } from "./keyfile.js";
+import { isKeychainProtected } from "./storekey.js";
 
 interface PullArgs {
   names: string[];
@@ -63,8 +65,11 @@ export async function cmdPull(io: Io): Promise<number> {
   }
 
   // Human gate FIRST — nothing is read or written until a human authorizes.
-  // --yes (or no authorizer wired) skips the prompt for scripts/agents.
-  const authorized = args.yes || (io.authorize ? await io.authorize() : false);
+  // --yes (or no authorizer wired) skips the prompt for scripts/agents. When the store
+  // key is keychain-protected, opening it below already requires Touch ID, so that
+  // unlock is the human gate and we don't prompt a second time here.
+  const authorized =
+    args.yes || isKeychainProtected(io.env, readKeyfile) || (io.authorize ? await io.authorize() : false);
   if (!authorized) {
     io.err("authorization denied or unavailable; nothing written\n");
     return 1;

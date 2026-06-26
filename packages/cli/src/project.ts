@@ -17,6 +17,8 @@ import {
   type StoreData,
 } from "@lockit/core";
 import { resolveKey, type Io } from "./commands.js";
+import { readKeyfile } from "./keyfile.js";
+import { isKeychainProtected } from "./storekey.js";
 
 interface AdmitItem {
   env: string;
@@ -188,6 +190,11 @@ export async function cmdAdmit(io: Io): Promise<number> {
     return 1;
   }
 
+  // If the store key is keychain-protected, opening the store below already requires
+  // a live Touch ID / password — that IS the human-presence proof, so we must not
+  // prompt a SECOND time for the admission gate. Only the plaintext / LOCKIT_PASSPHRASE
+  // case (where opening the store needs no auth) still needs the explicit gate.
+  const presenceProvenByUnlock = isKeychainProtected(io.env, readKeyfile);
   const store = await loadStore(await resolveKey(io), storePath());
 
   // Resolve every requested key BEFORE prompting; any failure aborts, nothing changes.
@@ -206,13 +213,16 @@ export async function cmdAdmit(io: Io): Promise<number> {
     items.push({ env: asName ?? r.field, slug: r.slug, field: r.field, value: field.value });
   }
 
-  // ONE human confirmation for the whole batch (value-free).
+  // ONE human confirmation for the whole batch (value-free). Skipped when unlocking
+  // the store already required Touch ID this command (no double prompt).
   const list = items.map((it) => `${it.env} -> ${it.slug}#${it.field}`).join(", ");
-  const ok = io.authorize
-    ? await io.authorize(
-        `Admit ${items.length} key(s) into this project and write them to .env? (${list})`,
-      )
-    : false;
+  const ok = presenceProvenByUnlock
+    ? true
+    : io.authorize
+      ? await io.authorize(
+          `Admit ${items.length} key(s) into this project and write them to .env? (${list})`,
+        )
+      : false;
   if (!ok) {
     io.err("admission denied or unavailable; nothing changed\n");
     return 1;

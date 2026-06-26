@@ -78,6 +78,11 @@ store key / passphrase; Touch ID is the presence-and-authorization layer.
 - Every store-touching command (`set`, `ls`, `admit`, `import`, secure-mode `run`, …)
   prompts Touch ID once to release the key. This is the point — an agent with shell
   access can no longer read the key from disk. Unattended/CI use sets `LOCKIT_PASSPHRASE`.
+- **No double prompts** (`0.5.2`): `admit` / `pull` previously stacked their own
+  human-presence gate on top of the key unlock, giving two Touch ID prompts. When the
+  key is keychain-protected the unlock *is* the presence proof, so the separate gate is
+  skipped (cancelling the unlock still denies the action). The explicit gate remains for
+  the plaintext / `LOCKIT_PASSPHRASE` case, where opening the store needs no auth.
 - Requires macOS + Xcode Command Line Tools (`swiftc`); otherwise lockit refuses to
   create a key and asks for `LOCKIT_PASSPHRASE` (it will not write plaintext). Existing
   plaintext keyfiles are still read on non-macOS for backward compatibility (with a warning).

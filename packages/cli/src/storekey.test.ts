@@ -1,5 +1,19 @@
 import { describe, it, expect, vi } from "vitest";
-import { loadStoreKey, protectKeyOn, KEYCHAIN_SERVICE } from "./storekey.js";
+import { loadStoreKey, protectKeyOn, isKeychainProtected, KEYCHAIN_SERVICE } from "./storekey.js";
+
+describe("isKeychainProtected — does using the store already require a Touch ID?", () => {
+  const marker = JSON.stringify({ protection: "keychain", service: "s", account: "a" });
+  it("true when the keyfile is a keychain marker and no passphrase override", () => {
+    expect(isKeychainProtected({} as NodeJS.ProcessEnv, () => marker)).toBe(true);
+  });
+  it("false when LOCKIT_PASSPHRASE overrides (no unlock prompt happens)", () => {
+    expect(isKeychainProtected({ LOCKIT_PASSPHRASE: "x" } as NodeJS.ProcessEnv, () => marker)).toBe(false);
+  });
+  it("false for a plaintext keyfile or no keyfile", () => {
+    expect(isKeychainProtected({} as NodeJS.ProcessEnv, () => "plain-key")).toBe(false);
+    expect(isKeychainProtected({} as NodeJS.ProcessEnv, () => undefined)).toBe(false);
+  });
+});
 
 function baseDeps(over: Partial<Parameters<typeof loadStoreKey>[0]> = {}) {
   return {
