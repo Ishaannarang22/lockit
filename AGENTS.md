@@ -76,7 +76,11 @@ This is a security product. Never trade security for speed, and make every step 
 
 Use TypeScript strict mode, conventional commits, semantic versioning, and changesets for versioning. Prefer many small, reviewable commits over one large one. The detailed step-by-step implementation plan is produced separately, after this documentation set.
 
+**Before publishing to npm, read [docs/mistakes-to-consider.md](docs/mistakes-to-consider.md).** Always release with `pnpm publish` (never `npm publish`) — npm ships the `workspace:*` protocol unresolved and breaks every install.
+
 ## Documentation pointers
+
+- [docs/mistakes-to-consider.md](docs/mistakes-to-consider.md) — hard-won gotchas (npm publishing, workspace protocol) — read before the matching task.
 
 - [docs/glossary.md](docs/glossary.md) — canonical terms (secret, field, slug, schema, slot, admission, etc.). Use exactly this terminology.
 - [docs/architecture.md](docs/architecture.md) — component layout, dependency direction, data flow, and the MCP decision.

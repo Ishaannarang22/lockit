@@ -49,3 +49,5 @@ Scope to one package with `pnpm --filter <pkg> <cmd>`. CI runs typecheck, lint, 
 ## Workflow
 
 TDD in very small, independently testable increments: failing test first, minimum implementation, verify in isolation. This is a security product — never trade security for speed. Conventional commits, semantic versioning, changesets.
+
+**Publishing:** always `pnpm publish` (never `npm publish`) — see [docs/mistakes-to-consider.md](docs/mistakes-to-consider.md). `npm publish` ships `workspace:*` unresolved and breaks every install.
