@@ -19,7 +19,7 @@ coverage/
 *.log
 
 # Local Claude Code settings
-.claude/settings.local.json
+.claude/
 .mcp.json
 
 # Env files (kv exists to replace these, but guard anyway)
