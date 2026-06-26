@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runLockit, withSandbox } from "./helpers.js";
@@ -45,6 +45,7 @@ describe("per-project keys + admission (e2e, real binary)", () => {
       const p = mkdtempSync(join(tmpdir(), "lockit-M-"));
       try {
         await runLockit(home, ["init"], { cwd: p });
+        mkdirSync(join(p, ".git")); // simulate a git repo so the .gitignore guard fires
         // a global bundle with several fields (like an imported .env)
         await runLockit(home, ["set", "pulse", "CARTESIA_API_KEY"], { stdin: "cart-123" });
         await runLockit(home, ["set", "pulse", "DEEPGRAM_API_KEY"], { stdin: "deep-456" });
@@ -62,7 +63,36 @@ describe("per-project keys + admission (e2e, real binary)", () => {
         expect(env).toContain("CARTESIA_API_KEY=cart-123");
         expect(env).toContain("DEEPGRAM_API_KEY=deep-456");
         expect(env).not.toContain("NVIDIA_API_KEY"); // only the ones I picked
+        // git repo + .env not ignored -> added + warned
         expect(readFileSync(join(p, ".gitignore"), "utf8")).toContain(".env");
+        expect(adm.stderr).toContain("not in .gitignore");
+      } finally {
+        rmSync(p, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("secure mode writes references to .env (no plaintext), resolved at runtime by run", async () => {
+    await withSandbox(async (home) => {
+      const p = mkdtempSync(join(tmpdir(), "lockit-SEC-"));
+      try {
+        await runLockit(home, ["init"], { cwd: p });
+        await runLockit(home, ["set", "pulse", "ZAI_API_KEY"], { stdin: "zai-real" });
+
+        const sec = await runLockit(home, ["secure", "on"], { cwd: p });
+        expect(sec.stdout).toContain("secure mode: on");
+
+        await runLockit(home, ["admit", "ZAI_API_KEY"], { cwd: p, env: { LOCKIT_PULL_YES: "1" } });
+        const env = readFileSync(join(p, ".env"), "utf8");
+        // a reference (quoted because it contains '#'), NOT the plaintext value
+        expect(env).toContain('ZAI_API_KEY="lockit:pulse#ZAI_API_KEY"');
+        expect(env).not.toContain("zai-real");
+
+        // the wrapper resolves the reference to the real value at runtime
+        await runLockit(home, ["run", "--", "sh", "-c", `printf %s "$ZAI_API_KEY" > out.txt`], {
+          cwd: p,
+        });
+        expect(readFileSync(join(p, "out.txt"), "utf8")).toBe("zai-real");
       } finally {
         rmSync(p, { recursive: true, force: true });
       }

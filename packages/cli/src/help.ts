@@ -21,6 +21,10 @@ PROJECTS (per-project keys + admission)
                                     into this project: prompts once to confirm, then writes
                                     them into ./.env (and adds .env to .gitignore).
   status                            This project's admitted keys, value-free.
+  secure [on|off]                   View or set this project's mode. Default (off): admit
+                                    writes real values to .env. Secure (on): admit writes
+                                    references resolved at runtime by 'lockit run' — no
+                                    plaintext on disk. Project-wide, saved in .lockit.
   run -- <cmd> [args...]            Run a command with this project's admitted keys injected
                                     (in memory, masked — no .env file needed).
 

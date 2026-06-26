@@ -65,6 +65,7 @@ describe("@lockit/core barrel re-exports", () => {
         "emptyVault",
         "bindKey",
         "unbindKey",
+        "setVaultSecure",
         "vaultRef",
         "findProjectRoot",
         "vaultPath",

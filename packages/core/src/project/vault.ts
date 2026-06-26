@@ -3,28 +3,37 @@ import { createHash } from "node:crypto";
 import { basename, dirname, join, resolve } from "node:path";
 import { lockitHome } from "../paths.js";
 
-/** A project's value-free binding map: ENV_VAR_NAME -> "slug#field". No values. */
+/** A project's value-free config: a binding map (ENV_VAR_NAME -> "slug#field")
+ *  and the project-level `secure` mode. No values. */
 export interface Vault {
   version: 1;
+  /** Secure mode: materialize references in .env (resolved at runtime by `run`)
+   *  instead of plaintext values. Project-wide, off by default. */
+  secure: boolean;
   bindings: Record<string, string>;
 }
 
 const PROJECT_DIR = ".lockit";
 
 export function emptyVault(): Vault {
-  return { version: 1, bindings: {} };
+  return { version: 1, secure: false, bindings: {} };
 }
 
 /** Bind an env-var name to a stored secret reference ("slug#field"). New vault. */
 export function bindKey(vault: Vault, name: string, ref: string): Vault {
-  return { version: 1, bindings: { ...vault.bindings, [name]: ref } };
+  return { ...vault, bindings: { ...vault.bindings, [name]: ref } };
 }
 
 /** Remove a binding. New vault. */
 export function unbindKey(vault: Vault, name: string): Vault {
   const bindings = { ...vault.bindings };
   delete bindings[name];
-  return { version: 1, bindings };
+  return { ...vault, bindings };
+}
+
+/** Set the project's secure mode. New vault. */
+export function setVaultSecure(vault: Vault, secure: boolean): Vault {
+  return { ...vault, secure };
 }
 
 /** The reference ("slug#field") bound to `name`, or undefined. */
@@ -62,7 +71,7 @@ export function vaultPath(projectRoot: string): string {
 export function readVault(projectRoot: string): Vault {
   try {
     const parsed = JSON.parse(readFileSync(vaultPath(projectRoot), "utf8")) as Partial<Vault>;
-    return { version: 1, bindings: parsed.bindings ?? {} };
+    return { version: 1, secure: parsed.secure ?? false, bindings: parsed.bindings ?? {} };
   } catch {
     return emptyVault();
   }

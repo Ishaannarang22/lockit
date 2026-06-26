@@ -58,7 +58,7 @@ describe("vault (filesystem)", () => {
   });
 
   it("readVault returns an empty vault when none exists", () => {
-    expect(readVault(root)).toEqual({ version: 1, bindings: {} });
+    expect(readVault(root)).toEqual({ version: 1, secure: false, bindings: {} });
   });
 
   it("findProjectRoot finds the nearest ancestor with .lockit/", () => {

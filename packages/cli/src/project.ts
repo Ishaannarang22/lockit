@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   bindKey,
   findProjectRoot,
@@ -11,6 +11,7 @@ import {
   resolveAdmit,
   resolveBinding,
   resolveVar,
+  setVaultSecure,
   storePath,
   writeVault,
   type StoreData,
@@ -58,8 +59,22 @@ function resolveAdmitArg(
   return { ok: false, error: `not found: ${name}` };
 }
 
-/** Append `.env` to the project's `.gitignore` if not already ignored. */
-function ensureGitignore(root: string): void {
+/** Is `root` (or an ancestor) a git repo? */
+function isGitRepo(root: string): boolean {
+  let dir = root;
+  for (;;) {
+    if (existsSync(join(dir, ".git"))) return true;
+    const parent = dirname(dir);
+    if (parent === dir) return false;
+    dir = parent;
+  }
+}
+
+/** After writing a plaintext `.env`: if this is a git repo and `.env` isn't
+ *  ignored, add it and warn (so a human or agent notices). Outside a git repo,
+ *  do nothing — it gets checked next time. No-op in secure mode (no plaintext). */
+function gitignoreGuard(root: string, io: Io): void {
+  if (!isGitRepo(root)) return;
   const path = join(root, ".gitignore");
   let current = "";
   try {
@@ -70,6 +85,33 @@ function ensureGitignore(root: string): void {
   if (/^\s*\.env\s*$/m.test(current)) return;
   const prefix = current.length > 0 && !current.endsWith("\n") ? "\n" : "";
   writeFileSync(path, `${current}${prefix}.env\n`);
+  io.err(
+    "warning: ./.env now holds plaintext secrets and was not in .gitignore — added it; verify before committing.\n",
+  );
+}
+
+/** `lockit secure [on|off]` — view or set this project's secure mode. */
+export async function cmdSecure(io: Io): Promise<number> {
+  const root = requireProject(io);
+  if (root === undefined) return 1;
+  const arg = io.argv[0];
+  const vault = readVault(root);
+  if (arg === undefined) {
+    io.out(`secure mode: ${vault.secure ? "on" : "off"}\n`);
+    return 0;
+  }
+  if (arg !== "on" && arg !== "off") {
+    io.err("usage: lockit secure [on|off]\n");
+    return 1;
+  }
+  writeVault(root, setVaultSecure(vault, arg === "on"));
+  io.out(
+    `secure mode: ${arg}\n` +
+      (arg === "on"
+        ? "newly admitted keys will be written to .env as references, resolved at runtime by 'lockit run'.\n"
+        : "newly admitted keys will be written to .env as plaintext values.\n"),
+  );
+  return 0;
 }
 
 function cwdOf(io: Io): string {
@@ -176,25 +218,32 @@ export async function cmdAdmit(io: Io): Promise<number> {
     return 1;
   }
 
-  // Record the value-free bindings...
-  let vault = readVault(root);
+  // Record the value-free bindings + read the project's mode.
+  const current = readVault(root);
+  const secure = current.secure;
+  let vault = current;
   for (const it of items) vault = bindKey(vault, it.env, `${it.slug}#${it.field}`);
   writeVault(root, vault);
 
-  // ...and materialize the values into the project's .env (0600), gitignored.
+  // Materialize into the project's .env (0600). Secure mode writes references
+  // (resolved at runtime by `lockit run`); default writes the real values.
   const envPath = join(root, ".env");
   const existing = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
   const merged = mergeDotenv(
     existing,
-    items.map((it) => ({ key: it.env, value: it.value })),
+    items.map((it) => ({
+      key: it.env,
+      value: secure ? `lockit:${it.slug}#${it.field}` : it.value,
+    })),
     { force },
   );
   writeFileSync(envPath, merged.text, { mode: 0o600 });
   chmodSync(envPath, 0o600);
-  ensureGitignore(root);
+  if (!secure) gitignoreGuard(root, io); // only plaintext needs the gitignore guard
 
+  const mode = secure ? " (secure: references)" : "";
   const skip =
     merged.skipped.length > 0 ? ` (skipped ${merged.skipped.length}; --force to overwrite)` : "";
-  io.out(`admitted ${items.length} key(s) -> ${envPath}${skip}\n`);
+  io.out(`admitted ${items.length} key(s) -> ${envPath}${mode}${skip}\n`);
   return 0;
 }

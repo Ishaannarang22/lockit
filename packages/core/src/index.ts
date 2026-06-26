@@ -20,6 +20,7 @@ export {
   emptyVault,
   bindKey,
   unbindKey,
+  setVaultSecure,
   vaultRef,
   findProjectRoot,
   vaultPath,

@@ -83,7 +83,23 @@ lockit run -- npm start                             # injected in memory, masked
 Inside a project the sandbox is strict: only **admitted** keys are usable; the
 global `run <slug>` / `pull --all` are refused. `admit` records a value-free
 binding in committable `.lockit/vault.json` **and** materializes the value into
-`.env`. Prefer `run -- <cmd>` when you don't need a `.env` on disk.
+`.env`. When `.env` gets plaintext in a git repo, lockit adds it to `.gitignore`
+and warns. Prefer `run -- <cmd>` when you don't need a `.env` on disk.
+
+### Two modes (project-wide)
+
+```sh
+lockit secure on        # this project: admit writes REFERENCES to .env, not values
+lockit admit ZAI_API_KEY # .env gets  ZAI_API_KEY="lockit:pulse#ZAI_API_KEY"
+lockit run -- npm start  # the wrapper resolves the reference to the real value in memory
+lockit secure off       # back to default: admit writes real values
+```
+
+- **Default (off):** `.env` holds real values — works with any tool, Vercel, etc.
+  The shell writes them, so an agent never sees the value.
+- **Secure (on):** `.env` holds only references; the value never touches disk and
+  only `lockit run` resolves it at runtime. The mode is saved in `.lockit`, so each
+  project chooses independently.
 
 ## Migrate an existing `.env`
 
