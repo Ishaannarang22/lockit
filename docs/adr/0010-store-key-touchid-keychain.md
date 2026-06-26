@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted (shipped in `@lockit/cli@0.5.0`, opt-in via `lockit protect on`)
+Accepted. Shipped opt-in in `@lockit/cli@0.5.0`; made the **default** (the key is
+born in the keychain and a plaintext key is never written) in `@lockit/cli@0.5.1`.
 
 ## Context
 
@@ -23,11 +24,16 @@ reachable from our distribution model — an **npm package that shells out to th
 
 ## Decision
 
-Ship an **opt-in** `lockit protect` command that moves the store key from the plaintext
-file into the **macOS login keychain** (generic password), gated on every read by
-`LAContext.evaluatePolicy(.deviceOwnerAuthentication)` (Touch ID → account-password
-fallback). The keyfile becomes a value-free marker JSON pointing at the keychain
-service/account; `resolveKey` transparently unwraps (one Touch ID) when it sees a marker.
+Protect the store key **by default**: it is created directly in the **macOS login
+keychain** (generic password) on first use and a plaintext key is never written to disk.
+Every read is gated by `LAContext.evaluatePolicy(.deviceOwnerAuthentication)` (Touch ID →
+account-password fallback). The keyfile holds only a value-free marker JSON pointing at
+the keychain service/account; `resolveKey` transparently unwraps (one Touch ID) when it
+sees a marker. A legacy plaintext keyfile is auto-migrated into the keychain (verified)
+on next use. Protection is mandatory and cannot be turned off; `LOCKIT_PASSPHRASE` remains
+the escape hatch for users who manage their own key (and the path for non-macOS / no-Swift
+environments, where lockit refuses to invent a plaintext key). The `lockit protect`
+command now only reports status / forces an early migration.
 
 - The keychain helper is a **compiled** Swift binary (cached under `~/.lockit/bin`,
   keyed by source hash), **not** the `swift` interpreter — so the keychain item's default
@@ -70,9 +76,11 @@ store key / passphrase; Touch ID is the presence-and-authorization layer.
 ## Consequences
 
 - Every store-touching command (`set`, `ls`, `admit`, `import`, secure-mode `run`, …)
-  prompts Touch ID once when protection is on. Off by default to preserve unattended
-  agent workflows; users opt in.
-- Requires macOS + Xcode Command Line Tools (`swiftc`) to enable; a clear error otherwise.
+  prompts Touch ID once to release the key. This is the point — an agent with shell
+  access can no longer read the key from disk. Unattended/CI use sets `LOCKIT_PASSPHRASE`.
+- Requires macOS + Xcode Command Line Tools (`swiftc`); otherwise lockit refuses to
+  create a key and asks for `LOCKIT_PASSPHRASE` (it will not write plaintext). Existing
+  plaintext keyfiles are still read on non-macOS for backward compatibility (with a warning).
 - The true non-extractable version needs a **signed + notarized native helper** (a future
   milestone), and the upcoming team **cloud** sync will gate CLI auth on a website login —
   both tracked separately.

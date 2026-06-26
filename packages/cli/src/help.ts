@@ -30,10 +30,11 @@ PROJECTS (per-project keys + admission)
                                     (in memory, masked — no .env file needed).
 
 COMMANDS (machine)
-  protect [on|off|status]           Protect the store key with Touch ID (macOS). 'on' moves
-                                    the key off the plaintext file into the keychain; lockit
-                                    then asks for Touch ID / your password to use the store.
-                                    'off' moves it back. Default sub: status.
+  protect [status|on]               The store key is protected by default — kept in the
+                                    macOS keychain behind Touch ID, never a plaintext file.
+                                    'status' reports; 'on' migrates a legacy plaintext key
+                                    now instead of on next use. Protection can't be disabled
+                                    (use LOCKIT_PASSPHRASE to manage your own key).
 
 COMMANDS (global store)
   set <slug> <KEY> [--schema <s>] [--file]
@@ -62,10 +63,11 @@ COMMANDS (global store)
         Show this help.
 
 SETUP
-  None. On first use lockit creates an encrypted store at ~/.lockit/store.json
-  and a machine-local key at ~/.lockit/key (both mode 0600). Set LOCKIT_PASSPHRASE
-  to use your own key instead of the auto-generated one. On macOS, run
-  'lockit protect on' to move that key into the keychain behind Touch ID.
+  None. On first use lockit creates an encrypted store at ~/.lockit/store.json.
+  The decryption key is created in the macOS keychain behind Touch ID (never a
+  plaintext file); ~/.lockit/key holds only a value-free marker. Set LOCKIT_PASSPHRASE
+  to manage your own key instead. (macOS + Xcode Command Line Tools required for the
+  keychain; otherwise set LOCKIT_PASSPHRASE.)
 
 CONFIG (environment variables)
   LOCKIT_HOME        Store + key directory (default: ~/.lockit)

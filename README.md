@@ -70,10 +70,11 @@ sandbox** (`init` / `set` / `admit` / `status` / `run`); `import` / `pull`; shel
 tab-completion (`install` / `completion`); `help`; a Claude Code plugin in
 [`plugin/`](./plugin); zero-setup keyfile so no passphrase needs exporting.
 Admission is gated by a real **macOS Touch ID / account-password dialog** (`0.4.5`).
-**`lockit protect on`** (`0.5.0`, macOS) moves the store key off the plaintext file
-into the **keychain behind Touch ID** — so reading `~/.lockit/key` no longer yields a
-usable key, and every store access needs your fingerprint or password. See
-[ADR-0010](./docs/adr/0010-store-key-touchid-keychain.md).
+**The store key is protected by default** (`0.5.1`, macOS): it is created in the
+**keychain behind Touch ID** on first use and **never written as a plaintext file** —
+`~/.lockit/key` holds only a value-free marker, so reading it yields nothing usable and
+every store access needs your fingerprint or password. Set `LOCKIT_PASSPHRASE` to manage
+your own key instead. See [ADR-0010](./docs/adr/0010-store-key-touchid-keychain.md).
 
 **Honest limit (and the cloud plan):** `protect` is a real, opt-in improvement, but
 it is an **authorization gate, not a hardware key release** — true Secure Enclave /
