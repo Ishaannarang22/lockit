@@ -3,24 +3,70 @@ import { parseKeyfile } from "./keyfile.js";
 /** Keychain service name under which the store key is filed (account varies). */
 export const KEYCHAIN_SERVICE = "dev.lockit.cli.store-key";
 
-export interface LoadKeyDeps {
+export interface LoadStoreKeyDeps {
   env: NodeJS.ProcessEnv;
-  /** Reads (creating if absent) the raw keyfile contents — plaintext key or marker. */
-  readKeyfile: () => string;
-  /** Touch-ID-gated keychain read; resolves the stored key or rejects (cancel/unavailable). */
+  /** Existing keyfile contents (plaintext key or marker), or undefined if none yet. */
+  readKeyfile: () => string | undefined;
+  /** Whether keychain-backed protection is usable (macOS + Swift toolchain). */
+  keychainAvailable: () => boolean;
+  /** Generate a fresh random store key (base64). */
+  randomKey: () => string;
+  /** Generate a fresh keychain account id. */
+  newAccount: () => string;
+  wrap: (service: string, account: string, secret: string) => Promise<boolean>;
   unwrap: (service: string, account: string) => Promise<string>;
+  del: (service: string, account: string) => Promise<void>;
+  writeMarker: (service: string, account: string) => void;
+  warn?: (msg: string) => void;
 }
 
-/** Resolve the store key. `LOCKIT_PASSPHRASE` overrides everything (never prompts).
- *  Otherwise: a plaintext keyfile is used as-is; a keychain marker triggers a
- *  Touch-ID unwrap. */
-export async function loadKey(deps: LoadKeyDeps): Promise<string> {
+/** Resolve the store key, keeping the decryption key protected by default.
+ *
+ *  - `LOCKIT_PASSPHRASE` overrides everything (you manage your own key).
+ *  - First use: the key is CREATED directly in the keychain — a plaintext key is
+ *    never written to disk. Without a usable keychain, we refuse rather than write
+ *    plaintext (set `LOCKIT_PASSPHRASE` instead).
+ *  - A keychain marker triggers a Touch ID unwrap.
+ *  - A legacy plaintext keyfile is auto-migrated into the keychain (verified) when
+ *    possible; if migration can't run/complete it keeps working and retries later. */
+export async function loadStoreKey(deps: LoadStoreKeyDeps): Promise<string> {
   const envKey = deps.env.LOCKIT_PASSPHRASE;
   if (envKey !== undefined && envKey.length > 0) return envKey;
 
-  const parsed = parseKeyfile(deps.readKeyfile());
-  if (parsed.kind === "plaintext") return parsed.key;
-  return deps.unwrap(parsed.service, parsed.account);
+  const content = deps.readKeyfile();
+
+  if (content === undefined) {
+    if (!deps.keychainAvailable()) {
+      throw new Error(
+        "lockit will not store a decryption key in plaintext. Set LOCKIT_PASSPHRASE, " +
+          "or run on macOS with Xcode Command Line Tools so the key can live in the keychain.",
+      );
+    }
+    const key = deps.randomKey();
+    const account = deps.newAccount();
+    await deps.wrap(KEYCHAIN_SERVICE, account, key); // no Touch ID to create
+    deps.writeMarker(KEYCHAIN_SERVICE, account);
+    return key;
+  }
+
+  const parsed = parseKeyfile(content);
+  if (parsed.kind === "keychain") return deps.unwrap(parsed.service, parsed.account);
+
+  // Legacy plaintext key. Migrate into the keychain if we can; never break access.
+  if (deps.keychainAvailable()) {
+    try {
+      await protectKeyOn(parsed.key, deps);
+    } catch {
+      // couldn't protect right now (e.g. Touch ID cancelled) — keep the plaintext
+      // key working; protectKeyOn already cleaned up any orphan keychain item.
+    }
+    return parsed.key;
+  }
+
+  deps.warn?.(
+    "warning: the store key is a plaintext file; set LOCKIT_PASSPHRASE or use macOS to protect it\n",
+  );
+  return parsed.key;
 }
 
 export interface ProtectOnOps {
@@ -31,41 +77,27 @@ export interface ProtectOnOps {
   newAccount: () => string;
 }
 
-/** Move a plaintext key into the keychain. Stores it, then PROVES a Touch-ID
- *  unwrap round-trips to the same bytes BEFORE writing the marker — so we never
- *  destroy the plaintext keyfile unless the protected key is provably recoverable.
- *  On any mismatch the freshly-stored item is deleted and the keyfile is untouched. */
+/** Move a plaintext key into the keychain. Stores it, then PROVES a Touch-ID unwrap
+ *  round-trips to the same bytes BEFORE writing the marker — so the plaintext keyfile
+ *  is only overwritten once the protected key is provably recoverable. Any failure
+ *  (mismatch or cancelled auth) deletes the freshly-stored item and rethrows. */
 export async function protectKeyOn(currentKey: string, ops: ProtectOnOps): Promise<void> {
   const service = KEYCHAIN_SERVICE;
   const account = ops.newAccount();
 
   await ops.wrap(service, account, currentKey);
 
-  const roundTrip = await ops.unwrap(service, account); // triggers Touch ID
+  let roundTrip: string;
+  try {
+    roundTrip = await ops.unwrap(service, account); // triggers Touch ID
+  } catch (e) {
+    await ops.del(service, account);
+    throw e instanceof Error ? e : new Error(String(e));
+  }
   if (roundTrip !== currentKey) {
     await ops.del(service, account);
     throw new Error("keychain verification failed; plaintext keyfile left unchanged");
   }
 
   ops.writeMarker(service, account);
-}
-
-export interface ProtectOffOps {
-  unwrap: (service: string, account: string) => Promise<string>;
-  del: (service: string, account: string) => Promise<void>;
-  writePlaintext: (key: string) => void;
-}
-
-/** Move the key back out of the keychain to a plaintext keyfile. Unwraps (Touch ID)
- *  and writes the plaintext FIRST, only then deletes the keychain item — never the
- *  other way round, so a failure can't leave the key irrecoverable. */
-export async function protectKeyOff(
-  service: string,
-  account: string,
-  ops: ProtectOffOps,
-): Promise<string> {
-  const key = await ops.unwrap(service, account); // triggers Touch ID
-  ops.writePlaintext(key);
-  await ops.del(service, account);
-  return key;
 }

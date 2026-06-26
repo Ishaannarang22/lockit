@@ -87,19 +87,10 @@ describe("cmdCompleteList", () => {
     expect(io.stdout).not.toContain("secret-xyz");
   });
 
-  it("lists via the keyfile with no LOCKIT_PASSPHRASE set", async () => {
-    const set = makeIo(["nvidia/dev", "NVIDIA_API_KEY"], home);
-    (set as { stdin: string }).stdin = "secret-xyz";
-    delete set.env.LOCKIT_PASSPHRASE;
-    delete process.env.LOCKIT_PASSPHRASE; // store sealed with the auto keyfile
-    await cmdSet(set);
-
-    const io = makeIo([], home);
-    delete io.env.LOCKIT_PASSPHRASE;
-    expect(await cmdCompleteList(io)).toBe(0);
-    expect(io.stdout).toContain("NVIDIA_API_KEY");
-    expect(io.stdout).not.toContain("secret-xyz");
-  });
+  // The no-LOCKIT_PASSPHRASE path now bootstraps the key into the macOS keychain
+  // (Touch-ID-gated), not a plaintext keyfile — that is exercised headlessly in
+  // storekey.test.ts (loadStoreKey). An end-to-end run here would need a real Touch
+  // ID and would create a real keychain item, so it is intentionally not unit-tested.
 });
 
 describe("cmdCompletion", () => {

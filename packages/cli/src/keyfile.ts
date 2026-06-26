@@ -1,5 +1,4 @@
-import { randomBytes } from "node:crypto";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { lockitHome } from "@lockit/core";
 
@@ -43,20 +42,23 @@ export function keychainMarker(service: string, account: string): string {
   return `${JSON.stringify({ v: 1, protection: KEYCHAIN_PROTECTION, service, account })}\n`;
 }
 
-/** The machine-local store key. Auto-created (32 random bytes, base64, mode 0600)
- *  on first use, so no passphrase is ever required. It is fed to the same
- *  passphrase-based seal as before — only its source changed: a local keyfile
- *  instead of a human-typed secret. */
-export function loadOrCreateKey(): string {
-  const path = keyPath();
+/** Read the keyfile if it exists. Returns its trimmed contents (a plaintext key, or
+ *  a keychain marker), or undefined when there is no key yet. NEVER creates a key —
+ *  the store key is bootstrapped (into the keychain) by the key resolver, so a
+ *  plaintext key is never written to disk by default. */
+export function readKeyfile(): string | undefined {
   try {
-    const existing = readFileSync(path, "utf8").trim();
-    if (existing.length > 0) return existing;
+    const existing = readFileSync(keyPath(), "utf8").trim();
+    return existing.length > 0 ? existing : undefined;
   } catch {
-    // missing/unreadable → create below
+    return undefined;
   }
-  const key = randomBytes(32).toString("base64");
+}
+
+/** Write the keyfile contents (the keychain marker) at mode 0600. */
+export function writeKeyfileContent(content: string): void {
+  const path = keyPath();
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  writeFileSync(path, `${key}\n`, { mode: 0o600 });
-  return key;
+  writeFileSync(path, content, { mode: 0o600 });
+  chmodSync(path, 0o600);
 }

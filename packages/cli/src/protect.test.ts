@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cmdProtect } from "./protect.js";
@@ -33,24 +33,28 @@ describe("cmdProtect (status + guards — paths that need no Touch ID)", () => {
     rmSync(home, { recursive: true, force: true });
   });
 
-  it("reports unprotected on a fresh (plaintext) keyfile", async () => {
+  it("reports no key yet on a fresh home (the key is created in the keychain on first use)", async () => {
     const { io, out } = makeIo(["status"]);
     expect(await cmdProtect(io)).toBe(0);
-    expect(out.join("")).toMatch(/unprotected/);
+    expect(out.join("")).toMatch(/created in the keychain on first use/);
+    // status must NOT create a plaintext keyfile as a side effect
+    expect(existsSync(join(home, "key"))).toBe(false);
   });
 
-  it("is a no-op when turning protection off while already unprotected", async () => {
-    const { io, out } = makeIo(["off"]);
+  it("reports the LOCKIT_PASSPHRASE-managed key in status", async () => {
+    const { io, out } = makeIo(["status"], { LOCKIT_PASSPHRASE: "override" });
     expect(await cmdProtect(io)).toBe(0);
-    expect(out.join("")).toMatch(/already unprotected/);
+    expect(out.join("")).toMatch(/LOCKIT_PASSPHRASE/);
   });
 
-  it("refuses to protect (returns 1, keyfile unchanged) when LOCKIT_PASSPHRASE is set", async () => {
+  it("refuses to turn protection off — it is mandatory", async () => {
+    const { io, err } = makeIo(["off"]);
+    expect(await cmdProtect(io)).toBe(1);
+    expect(err.join("")).toMatch(/always protects|can't be turned off/i);
+  });
+
+  it("refuses 'protect on' when LOCKIT_PASSPHRASE is set", async () => {
     const { io } = makeIo(["on"], { LOCKIT_PASSPHRASE: "override" });
     expect(await cmdProtect(io)).toBe(1);
-    // keyfile must remain a plaintext key, never a keychain marker
-    const content = readFileSync(join(home, "key"), "utf8");
-    expect(content).not.toMatch(/keychain/);
-    expect(existsSync(join(home, "key"))).toBe(true);
   });
 });

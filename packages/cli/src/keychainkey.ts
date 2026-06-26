@@ -138,6 +138,14 @@ function ensureBinary(): string {
   return bin;
 }
 
+/** Whether keychain-backed protection is usable here: macOS with the Swift
+ *  toolchain (`swiftc`, from Xcode Command Line Tools) present to build the helper. */
+export function keychainAvailable(): boolean {
+  if (process.platform !== "darwin") return false;
+  const r = spawnSync("swiftc", ["--version"], { stdio: "ignore" });
+  return r.error === undefined && r.status === 0;
+}
+
 interface RunResult {
   code: number | null;
   stdout: Buffer;

@@ -1,105 +1,114 @@
 import { describe, it, expect, vi } from "vitest";
-import { loadKey, protectKeyOn, protectKeyOff } from "./storekey.js";
+import { loadStoreKey, protectKeyOn, KEYCHAIN_SERVICE } from "./storekey.js";
 
-describe("loadKey", () => {
-  it("returns LOCKIT_PASSPHRASE when set, without reading the keyfile or keychain", async () => {
-    const readKeyfile = vi.fn(() => "should-not-be-read");
-    const unwrap = vi.fn();
-    const key = await loadKey({ env: { LOCKIT_PASSPHRASE: "override" }, readKeyfile, unwrap });
-    expect(key).toBe("override");
-    expect(readKeyfile).not.toHaveBeenCalled();
-    expect(unwrap).not.toHaveBeenCalled();
+function baseDeps(over: Partial<Parameters<typeof loadStoreKey>[0]> = {}) {
+  return {
+    env: {} as NodeJS.ProcessEnv,
+    readKeyfile: vi.fn(() => undefined as string | undefined),
+    keychainAvailable: vi.fn(() => true),
+    randomKey: vi.fn(() => "fresh-random-key"),
+    newAccount: vi.fn(() => "acct-1"),
+    wrap: vi.fn(async () => true),
+    unwrap: vi.fn(async () => "unwrapped"),
+    del: vi.fn(async () => {}),
+    writeMarker: vi.fn(),
+    warn: vi.fn(),
+    ...over,
+  };
+}
+
+describe("loadStoreKey — protected by default", () => {
+  it("returns LOCKIT_PASSPHRASE when set, touching nothing else", async () => {
+    const deps = baseDeps({ env: { LOCKIT_PASSPHRASE: "override" } as NodeJS.ProcessEnv });
+    expect(await loadStoreKey(deps)).toBe("override");
+    expect(deps.readKeyfile).not.toHaveBeenCalled();
   });
 
-  it("returns the plaintext key directly, never touching the keychain", async () => {
-    const unwrap = vi.fn();
-    const key = await loadKey({ env: {}, readKeyfile: () => "plain-key\n", unwrap });
-    expect(key).toBe("plain-key");
-    expect(unwrap).not.toHaveBeenCalled();
+  it("on first use, CREATES the key directly in the keychain — never a plaintext file", async () => {
+    const deps = baseDeps({ readKeyfile: () => undefined });
+    const key = await loadStoreKey(deps);
+    expect(key).toBe("fresh-random-key");
+    expect(deps.wrap).toHaveBeenCalledWith(KEYCHAIN_SERVICE, "acct-1", "fresh-random-key");
+    expect(deps.writeMarker).toHaveBeenCalledWith(KEYCHAIN_SERVICE, "acct-1");
+    expect(deps.unwrap).not.toHaveBeenCalled(); // no Touch ID at creation
   });
 
-  it("unwraps via the keychain (Touch ID) when the keyfile is a marker", async () => {
-    const unwrap = vi.fn(async () => "secret-from-keychain");
-    const readKeyfile = () => JSON.stringify({ protection: "keychain", service: "s", account: "a" });
-    const key = await loadKey({ env: {}, readKeyfile, unwrap });
-    expect(key).toBe("secret-from-keychain");
-    expect(unwrap).toHaveBeenCalledWith("s", "a");
+  it("refuses to invent a key when the keychain is unavailable (no plaintext fallback)", async () => {
+    const deps = baseDeps({ readKeyfile: () => undefined, keychainAvailable: () => false });
+    await expect(loadStoreKey(deps)).rejects.toThrow(/LOCKIT_PASSPHRASE|keychain/i);
+    expect(deps.wrap).not.toHaveBeenCalled();
   });
 
-  it("propagates an unwrap rejection (e.g. Touch ID cancelled)", async () => {
-    const unwrap = vi.fn(async () => {
-      throw new Error("authentication cancelled");
+  it("unwraps via Touch ID when the keyfile is a keychain marker", async () => {
+    const deps = baseDeps({
+      readKeyfile: () => JSON.stringify({ protection: "keychain", service: "s", account: "a" }),
+      unwrap: vi.fn(async () => "from-keychain"),
     });
-    const readKeyfile = () => JSON.stringify({ protection: "keychain", service: "s", account: "a" });
-    await expect(loadKey({ env: {}, readKeyfile, unwrap })).rejects.toThrow("cancelled");
+    expect(await loadStoreKey(deps)).toBe("from-keychain");
+    expect(deps.unwrap).toHaveBeenCalledWith("s", "a");
+  });
+
+  it("auto-migrates a legacy plaintext key into the keychain (verified) on next use", async () => {
+    const deps = baseDeps({ readKeyfile: () => "legacy-key", unwrap: vi.fn(async () => "legacy-key") });
+    const key = await loadStoreKey(deps);
+    expect(key).toBe("legacy-key");
+    expect(deps.wrap).toHaveBeenCalledWith(KEYCHAIN_SERVICE, "acct-1", "legacy-key");
+    expect(deps.writeMarker).toHaveBeenCalled(); // now protected
+  });
+
+  it("keeps working (plaintext preserved) if the migration Touch ID is cancelled", async () => {
+    const deps = baseDeps({
+      readKeyfile: () => "legacy-key",
+      unwrap: vi.fn(async () => {
+        throw new Error("authentication cancelled");
+      }),
+    });
+    const key = await loadStoreKey(deps);
+    expect(key).toBe("legacy-key"); // command still proceeds
+    expect(deps.writeMarker).not.toHaveBeenCalled(); // keyfile left as plaintext, retried next time
+    expect(deps.del).toHaveBeenCalled(); // orphan keychain item cleaned up
+  });
+
+  it("reads (but warns about) a legacy plaintext key when the keychain is unavailable", async () => {
+    const deps = baseDeps({ readKeyfile: () => "legacy-key", keychainAvailable: () => false });
+    expect(await loadStoreKey(deps)).toBe("legacy-key");
+    expect(deps.warn).toHaveBeenCalled();
+    expect(deps.wrap).not.toHaveBeenCalled();
   });
 });
 
-describe("protectKeyOn (migrate plaintext -> keychain)", () => {
-  const baseOps = () => ({
+describe("protectKeyOn (explicit migrate, strict)", () => {
+  const ops = (over = {}) => ({
     wrap: vi.fn(async () => true),
     unwrap: vi.fn(async () => "the-key"),
     del: vi.fn(async () => {}),
     writeMarker: vi.fn(),
     newAccount: () => "acct-1",
+    ...over,
   });
 
-  it("wraps, verifies via an unwrap round-trip, then writes the marker", async () => {
-    const ops = baseOps();
-    await protectKeyOn("the-key", ops);
-    expect(ops.wrap).toHaveBeenCalledWith(expect.any(String), "acct-1", "the-key");
-    expect(ops.unwrap).toHaveBeenCalledWith(expect.any(String), "acct-1");
-    expect(ops.writeMarker).toHaveBeenCalledWith(expect.any(String), "acct-1");
-    expect(ops.del).not.toHaveBeenCalled();
+  it("wraps, verifies the round-trip, then writes the marker", async () => {
+    const o = ops();
+    await protectKeyOn("the-key", o);
+    expect(o.writeMarker).toHaveBeenCalled();
+    expect(o.del).not.toHaveBeenCalled();
   });
 
-  it("ABORTS without writing the marker if the round-trip does not match (deletes the bad item)", async () => {
-    const ops = { ...baseOps(), unwrap: vi.fn(async () => "WRONG") };
-    await expect(protectKeyOn("the-key", ops)).rejects.toThrow(/verif/i);
-    expect(ops.writeMarker).not.toHaveBeenCalled(); // plaintext keyfile is left untouched
-    expect(ops.del).toHaveBeenCalled();
+  it("deletes the item and throws on a verification mismatch (keyfile untouched)", async () => {
+    const o = ops({ unwrap: vi.fn(async () => "WRONG") });
+    await expect(protectKeyOn("the-key", o)).rejects.toThrow(/verif/i);
+    expect(o.writeMarker).not.toHaveBeenCalled();
+    expect(o.del).toHaveBeenCalled();
   });
 
-  it("does not write the marker if verification auth is cancelled", async () => {
-    const ops = {
-      ...baseOps(),
-      unwrap: vi.fn(async () => {
-        throw new Error("authentication cancelled");
-      }),
-    };
-    await expect(protectKeyOn("the-key", ops)).rejects.toThrow();
-    expect(ops.writeMarker).not.toHaveBeenCalled();
-  });
-});
-
-describe("protectKeyOff (keychain -> plaintext)", () => {
-  it("unwraps (Touch ID), writes the plaintext key back, then deletes the keychain item", async () => {
-    const order: string[] = [];
-    const ops = {
-      unwrap: vi.fn(async () => "recovered-key"),
-      del: vi.fn(async () => {
-        order.push("del");
-      }),
-      writePlaintext: vi.fn(() => {
-        order.push("write");
-      }),
-    };
-    const key = await protectKeyOff("s", "a", ops);
-    expect(key).toBe("recovered-key");
-    expect(ops.writePlaintext).toHaveBeenCalledWith("recovered-key");
-    expect(order).toEqual(["write", "del"]); // never delete before the plaintext is safely written
-  });
-
-  it("does not write or delete if the unwrap is cancelled", async () => {
-    const ops = {
+  it("deletes the orphan item and rethrows if the verify auth is cancelled", async () => {
+    const o = ops({
       unwrap: vi.fn(async () => {
         throw new Error("cancelled");
       }),
-      del: vi.fn(async () => {}),
-      writePlaintext: vi.fn(),
-    };
-    await expect(protectKeyOff("s", "a", ops)).rejects.toThrow();
-    expect(ops.writePlaintext).not.toHaveBeenCalled();
-    expect(ops.del).not.toHaveBeenCalled();
+    });
+    await expect(protectKeyOn("the-key", o)).rejects.toThrow();
+    expect(o.del).toHaveBeenCalled();
+    expect(o.writeMarker).not.toHaveBeenCalled();
   });
 });

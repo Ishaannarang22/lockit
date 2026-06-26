@@ -18,9 +18,10 @@ import {
   writeVault,
 } from "@lockit/core";
 import type { FieldType } from "@lockit/core";
-import { loadOrCreateKey } from "./keyfile.js";
-import { loadKey } from "./storekey.js";
-import { keychainUnwrap } from "./keychainkey.js";
+import { randomBytes } from "node:crypto";
+import { readKeyfile, keychainMarker, writeKeyfileContent } from "./keyfile.js";
+import { loadStoreKey } from "./storekey.js";
+import { keychainWrap, keychainUnwrap, keychainDelete, keychainAvailable } from "./keychainkey.js";
 
 /** The injected IO surface every handler talks to — no direct `process.std*`,
  *  so handlers stay pure-ish and unit-testable with a fake IO. */
@@ -38,12 +39,22 @@ export interface Io {
   authorize?: (prompt?: string) => Promise<boolean>;
 }
 
-/** The store key: `LOCKIT_PASSPHRASE` if explicitly set (override), otherwise the
- *  auto-managed machine-local keyfile. If the keyfile has been protected (`lockit
- *  protect`), this triggers a Touch ID / account-password unwrap from the keychain;
- *  otherwise it never prompts. */
+/** The store key, protected by default. `LOCKIT_PASSPHRASE` overrides it; otherwise
+ *  the key lives in the macOS keychain (created there on first use, never as a
+ *  plaintext file) and is released by a Touch ID / account-password unwrap. */
 export async function resolveKey(io: Io): Promise<string> {
-  return loadKey({ env: io.env, readKeyfile: loadOrCreateKey, unwrap: keychainUnwrap });
+  return loadStoreKey({
+    env: io.env,
+    readKeyfile,
+    keychainAvailable,
+    randomKey: () => randomBytes(32).toString("base64"),
+    newAccount: () => randomBytes(8).toString("hex"),
+    wrap: keychainWrap,
+    unwrap: keychainUnwrap,
+    del: keychainDelete,
+    writeMarker: (service, account) => writeKeyfileContent(keychainMarker(service, account)),
+    warn: (msg) => io.err(msg),
+  });
 }
 
 /** Strip exactly one trailing newline ("\n" or "\r\n") so a piped value isn't
