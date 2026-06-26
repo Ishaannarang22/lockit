@@ -62,6 +62,11 @@ export async function resolveKey(io: Io): Promise<string> {
       // at it, then best-effort drop the old (foreign, undeletable-in-place) items.
       const newAccount = randomBytes(8).toString("hex");
       await keychainWrap(service, newAccount, key);
+      // Carry the unlock session onto the new account, so the command right after a
+      // heal is still covered by the window instead of needing a fresh Touch ID.
+      if (ttlMs > 0) {
+        await keychainWrap(service, sessionAccount(newAccount), `${Date.now() + ttlMs}.${key}`);
+      }
       writeKeyfileContent(keychainMarker(service, newAccount, HELPER_ID));
       await keychainDelete(service, oldAccount).catch(() => undefined);
       await keychainDelete(service, sessionAccount(oldAccount)).catch(() => undefined);
