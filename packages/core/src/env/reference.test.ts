@@ -47,6 +47,10 @@ describe("parseReferences", () => {
     const refs = parseReferences("MY_KEY=@some/path#FIELD\n");
     expect(refs[0]?.ref).toBe("some/path#FIELD");
   });
+
+  it("throws on duplicate env names", () => {
+    expect(() => parseReferences("A=@one\nA=@two\n")).toThrow(/duplicate env name/);
+  });
 });
 
 describe("serializeReferences", () => {

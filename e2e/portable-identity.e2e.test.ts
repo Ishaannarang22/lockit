@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { runLockit, withSandbox } from "./helpers.js";
 
 describe("portable identity (e2e, real binary)", () => {
-  it("a value-free reference file authored by A fills with B's OWN key; no value crosses", async () => {
+  it("a value-free reference file authored by A carries no value and cannot fill without auth", async () => {
     // Two independent stores (separate sandbox HOMEs) and one shared reference file.
     await withSandbox(async (homeA) => {
       await withSandbox(async (homeB) => {
@@ -34,19 +34,15 @@ describe("portable identity (e2e, real binary)", () => {
           });
           expect(setB.code).toBe(0);
 
-          // --- B resolves A's reference file against B's store ---
+          // --- B cannot resolve A's reference file without a human gate ---
           const bEnv = join(proj, "b.env");
           const res = await runLockit(homeB, ["resolve", ref, "--out", bEnv, "--yes"], {
             passphrase: "pwB",
           });
-          expect(res.code).toBe(0);
+          expect(res.code).toBe(1);
           expect(res.stdout).not.toContain("bob-key");
           expect(res.stdout).not.toContain("alice-key");
-
-          // Core guarantee: references travel, values do not. B gets B's value.
-          const filled = readFileSync(bEnv, "utf8");
-          expect(filled).toContain("PULSE_API_KEY=bob-key");
-          expect(filled).not.toContain("alice-key");
+          expect(res.stderr).toContain("--yes");
         } finally {
           rmSync(proj, { recursive: true, force: true });
         }

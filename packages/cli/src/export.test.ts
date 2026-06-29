@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { emptyStore, saveStore, storePath, upsertField } from "@lockit/core";
@@ -95,5 +95,17 @@ describe("cmdExport", () => {
 
     const text = readFileSync(out, "utf8");
     expect(text).toContain("PULSE_API_KEY=@pulse");
+  });
+
+  it("refuses to export duplicate env names", async () => {
+    await seed([
+      { slug: "pulse/a", schema: "pulse", key: "API_KEY", value: "a" },
+      { slug: "pulse/b", schema: "pulse", key: "API_KEY", value: "b" },
+    ]);
+
+    const io = makeIo([], home);
+    expect(await cmdExport(io)).toBe(1);
+    expect(io.stderr).toContain("duplicate env name");
+    expect(existsSync(join(dir, ".env.ref"))).toBe(false);
   });
 });

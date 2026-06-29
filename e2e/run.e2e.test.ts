@@ -11,7 +11,7 @@ async function seed(home: string, key = "MYKEY", value = SECRET): Promise<void> 
 }
 
 describe("lockit run (e2e, real binary)", () => {
-  it("injects the env var (child reads it) but masks it in kv's forwarded stdout", async () => {
+  it("injects the env var (child reads it) but masks it in lockit's forwarded stdout", async () => {
     await withSandbox(async (home) => {
       await seed(home);
       const run = await runLockit(
@@ -220,13 +220,13 @@ describe("lockit run (e2e, real binary)", () => {
       await seed(home);
       const run = await runLockit(
         home,
-        ["run", "openai/dev", "this-binary-does-not-exist-kv-e2e"],
+        ["run", "openai/dev", "this-binary-does-not-exist-lockit-e2e"],
         {
           passphrase: PW,
         },
       );
       expect(run.code).toBe(1);
-      expect(run.stderr).toContain("failed to run this-binary-does-not-exist-kv-e2e");
+      expect(run.stderr).toContain("failed to run this-binary-does-not-exist-lockit-e2e");
       expect(run.stderr).not.toContain(SECRET);
     });
   });
@@ -306,7 +306,7 @@ describe("lockit entry point (e2e)", () => {
     await withSandbox(async (home) => {
       const r = await runLockit(home, ["frobnicate"], { passphrase: PW });
       expect(r.code).toBe(1);
-      expect(r.stderr).toContain("usage: lockit <init|set|admit|status|secure|ls|run|import|pull");
+      expect(r.stderr).toContain("usage: lockit <init|set|admit|status|secure|protect|lock|ls|run|import|export|pull|resolve|install|completion|help");
       expect(r.stdout).toBe("");
     });
   });

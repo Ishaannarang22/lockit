@@ -38,6 +38,7 @@ export async function cmdExport(io: Io): Promise<number> {
   }
 
   const refs: Reference[] = [];
+  const seenEnvNames = new Set<string>();
   for (const secret of listSecrets(store)) {
     const provider = secret.slug.split("/")[0] ?? secret.slug;
     const single = secret.fields.length === 1;
@@ -45,6 +46,11 @@ export async function cmdExport(io: Io): Promise<number> {
       if (field.type !== "env") continue;
       const ref = single ? provider : `${secret.slug}#${field.key}`;
       const envName = entryFor(builtinRegistry, provider)?.env?.[field.key]?.[0] ?? field.key;
+      if (seenEnvNames.has(envName)) {
+        io.err(`duplicate env name ${envName}; qualify or rename before exporting\n`);
+        return 1;
+      }
+      seenEnvNames.add(envName);
       refs.push({ envName, ref });
     }
   }

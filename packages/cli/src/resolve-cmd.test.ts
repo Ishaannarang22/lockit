@@ -2,7 +2,16 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { emptyStore, saveStore, storePath, upsertField } from "@lockit/core";
+import {
+  bindKey,
+  emptyStore,
+  initProject,
+  saveStore,
+  storePath,
+  upsertField,
+  writeVault,
+  readVault,
+} from "@lockit/core";
 import { cmdResolve } from "./resolve-cmd.js";
 import type { Io } from "./commands.js";
 
@@ -76,6 +85,16 @@ describe("cmdResolve", () => {
     expect(text).toContain("PULSE_API_KEY=my-own-key");
   });
 
+  it("rejects --yes because admission must prove human presence", async () => {
+    await seed([{ slug: "pulse", schema: "pulse", key: "API_KEY", value: "my-own-key" }]);
+    writeFileSync(join(dir, ".env.ref"), "PULSE_API_KEY=@pulse\n");
+
+    const io = makeIo(["--yes"], home);
+    expect(await cmdResolve(io)).toBe(1);
+    expect(existsSync(join(dir, ".env"))).toBe(false);
+    expect(io.stderr).toContain("--yes");
+  });
+
   it("writes nothing when denied", async () => {
     await seed([{ slug: "pulse", schema: "pulse", key: "API_KEY", value: "my-own-key" }]);
     writeFileSync(join(dir, ".env.ref"), "PULSE_API_KEY=@pulse\n");
@@ -93,5 +112,49 @@ describe("cmdResolve", () => {
     expect(await cmdResolve(io)).not.toBe(0);
     expect(existsSync(join(dir, ".env"))).toBe(false);
     expect(io.stderr).toContain("MISSING_KEY");
+  });
+
+  it("inside a project, refuses refs that were not admitted to the vault", async () => {
+    await seed([{ slug: "pulse", schema: "pulse", key: "API_KEY", value: "my-own-key" }]);
+    initProject(dir);
+    writeFileSync(join(dir, ".env.ref"), "PULSE_API_KEY=@pulse\n");
+
+    const io = makeIo([], home, async () => true);
+    expect(await cmdResolve(io)).toBe(1);
+    expect(existsSync(join(dir, ".env"))).toBe(false);
+    expect(io.stderr).toContain("not admitted");
+  });
+
+  it("inside a project, fills only refs matching admitted vault bindings", async () => {
+    await seed([{ slug: "pulse", schema: "pulse", key: "API_KEY", value: "my-own-key" }]);
+    initProject(dir);
+    writeVault(dir, bindKey(readVault(dir), "PULSE_API_KEY", "pulse#API_KEY"));
+    writeFileSync(join(dir, ".env.ref"), "PULSE_API_KEY=@pulse\n");
+
+    const io = makeIo([], home, async () => true);
+    expect(await cmdResolve(io)).toBe(0);
+    expect(readFileSync(join(dir, ".env"), "utf8")).toContain("PULSE_API_KEY=my-own-key");
+  });
+
+  it("rejects duplicate env names in a reference file before writing", async () => {
+    await seed([{ slug: "pulse", schema: "pulse", key: "API_KEY", value: "my-own-key" }]);
+    writeFileSync(join(dir, ".env.ref"), "PULSE_API_KEY=@pulse\nPULSE_API_KEY=@pulse\n");
+
+    const io = makeIo([], home, async () => true);
+    expect(await cmdResolve(io)).toBe(1);
+    expect(existsSync(join(dir, ".env"))).toBe(false);
+    expect(io.stderr).toContain("duplicate env name");
+  });
+
+  it("adds .env to .gitignore when creating plaintext in a git repo", async () => {
+    await seed([{ slug: "pulse", schema: "pulse", key: "API_KEY", value: "my-own-key" }]);
+    writeFileSync(join(dir, ".env.ref"), "PULSE_API_KEY=@pulse\n");
+    writeFileSync(join(dir, ".gitignore"), "node_modules\n");
+    writeFileSync(join(dir, ".git"), "");
+
+    const io = makeIo([], home, async () => true);
+    expect(await cmdResolve(io)).toBe(0);
+    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toContain(".env\n");
+    expect(io.stderr).toContain("plaintext secrets");
   });
 });

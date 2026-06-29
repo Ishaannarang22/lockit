@@ -1,10 +1,12 @@
 import { readFile, writeFile, chmod } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import {
+  findProjectRoot,
   loadStore,
   mergeDotenv,
   parseReferences,
+  readVault,
   resolveRef,
   storePath,
   type DotenvEntry,
@@ -41,21 +43,65 @@ function parseResolveArgs(argv: string[]): ResolveArgs {
 
 /** Resolve the target env file by fixed precedence: --out, else first existing
  *  of .env.local / .env, else a new .env in the cwd. */
-function targetFile(out: string | undefined): { path: string; isNew: boolean } {
+function targetFile(cwd: string, out: string | undefined): { path: string; isNew: boolean } {
   if (out !== undefined) return { path: out, isNew: !existsSync(out) };
   for (const name of [".env.local", ".env"]) {
-    const p = join(process.cwd(), name);
+    const p = join(cwd, name);
     if (existsSync(p)) return { path: p, isNew: false };
   }
-  return { path: join(process.cwd(), ".env"), isNew: true };
+  return { path: join(cwd, ".env"), isNew: true };
 }
 
-/** `lockit resolve [<ref-file>] [--out <file>] [--force] [--yes]`
+function cwdOf(io: Io): string {
+  return io.cwd ?? process.cwd();
+}
+
+function gitRoot(start: string): string | undefined {
+  let dir = start;
+  for (;;) {
+    if (existsSync(join(dir, ".git"))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+}
+
+async function gitignorePlaintextEnvGuard(path: string, io: Io): Promise<void> {
+  const name = basename(path);
+  if (name !== ".env" && name !== ".env.local") return;
+  const root = gitRoot(dirname(path));
+  if (root === undefined) return;
+
+  const gitignore = join(root, ".gitignore");
+  let current = "";
+  try {
+    current = await readFile(gitignore, "utf8");
+  } catch {
+    current = "";
+  }
+
+  const rel = relative(root, path) || name;
+  const escaped = rel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (new RegExp(`^\\s*${escaped}\\s*$`, "m").test(current)) return;
+
+  const prefix = current.length > 0 && !current.endsWith("\n") ? "\n" : "";
+  await writeFile(gitignore, `${current}${prefix}${rel}\n`, "utf8");
+  io.err(
+    `warning: ${rel} now holds plaintext secrets and was not in .gitignore - added it; verify before committing.\n`,
+  );
+}
+
+/** `lockit resolve [<ref-file>] [--out <file>] [--force]`
  *  Read a value-free reference file (`ENV=@ref` lines), resolve each `@ref`
  *  against the LOCAL store strictly 0/1/N, and — behind one admission auth —
  *  fill the resolved values into `.env`. Never partially fills; never prints a value. */
 export async function cmdResolve(io: Io): Promise<number> {
   const args = parseResolveArgs(io.argv);
+  if (args.yes) {
+    io.err("--yes cannot authorize plaintext secret writes; use local auth or an interactive confirmation\n");
+    return 1;
+  }
+  const cwd = cwdOf(io);
 
   // Read the value-free reference file first (leaks nothing) so the prompt can
   // name what is about to be filled. Nothing is WRITTEN before authorization.
@@ -79,14 +125,14 @@ export async function cmdResolve(io: Io): Promise<number> {
     return 1;
   }
 
-  const target = targetFile(args.out);
+  const target = targetFile(cwd, args.out);
   const providers = refs.map((r) => `@${r.ref}`);
   const promptText = `admit ${refs.length} reference(s): ${providers.join(", ")} — fill ${target.path}?`;
 
-  // Human gate FIRST — nothing is written until a human authorizes. --yes (or a
-  // keychain-protected store, whose unlock is itself a Touch ID gate) skips the prompt.
+  // Human gate FIRST — nothing is written until a human authorizes. A
+  // keychain-protected store, whose unlock is itself a Touch ID / OS password
+  // gate, skips the separate prompt.
   const authorized =
-    args.yes ||
     isKeychainProtected(io.env, readKeyfile) ||
     (io.authorize ? await io.authorize(promptText) : false);
   if (!authorized) {
@@ -105,9 +151,16 @@ export async function cmdResolve(io: Io): Promise<number> {
   const entries: DotenvEntry[] = [];
   const chosen: { envName: string; slug: string }[] = [];
   const problems: string[] = [];
+  const projectRoot = findProjectRoot(cwd);
+  const vault = projectRoot === undefined ? undefined : readVault(projectRoot);
   for (const ref of refs) {
     const result = resolveRef(store, ref.ref);
     if (result.status === "found") {
+      const concreteRef = `${result.bundle}#${result.field.key}`;
+      if (vault !== undefined && vault.bindings[ref.envName] !== concreteRef) {
+        problems.push(`${ref.envName} -> @${ref.ref} (not admitted to this project)`);
+        continue;
+      }
       entries.push({ key: ref.envName, value: result.field.value });
       chosen.push({ envName: ref.envName, slug: result.bundle });
     } else if (result.status === "none") {
@@ -128,6 +181,7 @@ export async function cmdResolve(io: Io): Promise<number> {
   const merged = mergeDotenv(existingText, entries, { force: args.force });
   await writeFile(target.path, merged.text, target.isNew ? { mode: 0o600 } : {});
   await chmod(target.path, 0o600);
+  await gitignorePlaintextEnvGuard(target.path, io);
 
   // Auto-fill but tell me: name the chosen slug behind each filled var.
   for (const c of chosen) io.out(`${c.envName} <- ${c.slug}\n`);

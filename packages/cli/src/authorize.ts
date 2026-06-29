@@ -4,15 +4,9 @@ import * as tty from "node:tty";
 /** Ask the human, on /dev/tty, to confirm a pull (y/N). Resolves false if no
  *  controlling terminal is available or on anything but an explicit yes. An
  *  agent that drives the child's stdin cannot answer a /dev/tty prompt, so it
- *  cannot self-authorize. `LOCKIT_PULL_YES=1` bypasses the prompt. */
+ *  cannot self-authorize. */
 export function ttyAuthorize(prompt = "write secret values to the env file?"): Promise<boolean> {
   return new Promise((resolve) => {
-    if (process.env.LOCKIT_PULL_YES === "1") {
-      process.stderr.write("warning: LOCKIT_PULL_YES=1 — confirmation skipped\n");
-      resolve(true);
-      return;
-    }
-
     let fd: number;
     try {
       fd = openSync("/dev/tty", "r+");

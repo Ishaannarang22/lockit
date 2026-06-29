@@ -69,11 +69,12 @@ describe("cmdPull", () => {
     expect(io.stdout).not.toContain("sk-live-123");
   });
 
-  it("--yes skips the confirmation gate (no authorizer needed)", async () => {
+  it("rejects --yes because plaintext writes require human authorization", async () => {
     const out = join(dir, ".env");
     const io = makeIo(["API_KEY", "--out", out, "--yes"], home); // no authorize wired
-    expect(await cmdPull(io)).toBe(0);
-    expect(readFileSync(out, "utf8")).toContain("API_KEY=sk-live-123");
+    expect(await cmdPull(io)).toBe(1);
+    expect(existsSync(out)).toBe(false);
+    expect(io.stderr).toContain("--yes");
   });
 
   it("writes nothing and exits 1 when authorization is denied", async () => {

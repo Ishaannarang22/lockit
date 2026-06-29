@@ -8,9 +8,9 @@ describe("ttyAuthorize headless behavior", () => {
     else process.env.LOCKIT_PULL_YES = prev;
   });
 
-  it("returns true when LOCKIT_PULL_YES=1 (bypass)", async () => {
+  it("does not honor LOCKIT_PULL_YES as a bypass", async () => {
     process.env.LOCKIT_PULL_YES = "1";
-    expect(await ttyAuthorize()).toBe(true);
+    expect(await ttyAuthorize()).toBe(false);
   });
 
   it("returns false with no bypass and no controlling tty", async () => {

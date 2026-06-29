@@ -59,17 +59,21 @@ export async function cmdPull(io: Io): Promise<number> {
   const args = parsePullArgs(io.argv);
   if (args.names.length === 0 && args.allBundle === undefined) {
     io.err(
-      "usage: lockit pull <VAR...> | <bundle#VAR> | --all <bundle> [--out <file>] [--force] [--yes]\n",
+      "usage: lockit pull <VAR...> | <bundle#VAR> | --all <bundle> [--out <file>] [--force]\n",
     );
+    return 1;
+  }
+  if (args.yes) {
+    io.err("--yes cannot authorize plaintext secret writes; use local auth or an interactive confirmation\n");
     return 1;
   }
 
   // Human gate FIRST — nothing is read or written until a human authorizes.
-  // --yes (or no authorizer wired) skips the prompt for scripts/agents. When the store
-  // key is keychain-protected, opening it below already requires Touch ID, so that
-  // unlock is the human gate and we don't prompt a second time here.
+  // When the store key is keychain-protected, opening it below already requires
+  // Touch ID / OS password, so that unlock is the human gate and we don't prompt
+  // a second time here.
   const authorized =
-    args.yes || isKeychainProtected(io.env, readKeyfile) || (io.authorize ? await io.authorize() : false);
+    isKeychainProtected(io.env, readKeyfile) || (io.authorize ? await io.authorize() : false);
   if (!authorized) {
     io.err("authorization denied or unavailable; nothing written\n");
     return 1;

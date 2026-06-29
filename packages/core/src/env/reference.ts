@@ -15,6 +15,7 @@ export interface Reference {
  */
 export function parseReferences(text: string): Reference[] {
   const refs: Reference[] = [];
+  const seen = new Set<string>();
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i] ?? "";
@@ -29,6 +30,9 @@ export function parseReferences(text: string): Reference[] {
       throw new Error(
         `malformed reference line ${i + 1}: invalid key ${JSON.stringify(envName)}`,
       );
+    if (seen.has(envName))
+      throw new Error(`malformed reference line ${i + 1}: duplicate env name ${envName}`);
+    seen.add(envName);
     const value = withoutExport.slice(eq + 1);
     if (!value.startsWith("@"))
       throw new Error(`malformed reference line ${i + 1}: value is not a @reference`);

@@ -107,7 +107,7 @@ lockit secure off       # back to default: admit writes real values
 lockit import .env --as myapp/dev      # store every var; the file is left untouched
 lockit run myapp/dev -- npm start      # run with all of them injected (global secret)
 # or write specific values back into a .env:
-lockit pull STRIPE_KEY DATABASE_URL    # asks to confirm first; --yes to skip
+lockit pull STRIPE_KEY DATABASE_URL    # asks to confirm first
 ```
 
 ## Commands
@@ -123,7 +123,7 @@ lockit pull STRIPE_KEY DATABASE_URL    # asks to confirm first; --yes to skip
 | `run -- <cmd> [args...]`                                                        | In a project: run `<cmd>` with the project's admitted keys injected, masked.     |
 | `run <slug> [--] <cmd> [args...]`                                               | Global (outside a project): inject one secret's fields.                          |
 | `import [path] [--as <slug>]`                                                   | Import a `.env` into the global store (default `./.env`). Doesn't touch file.    |
-| `pull <VAR...> \| <bundle#VAR> \| --all <bundle> [--out <f>] [--force] [--yes]` | Write real values into a `.env`. Confirms first. Sandboxed inside a project.     |
+| `pull <VAR...> \| <bundle#VAR> \| --all <bundle> [--out <f>] [--force]`         | Write real values into a `.env`. Confirms first. Sandboxed inside a project.     |
 | `install [zsh\|bash] [--no-skill]`                                              | Set up tab-completion + the global Claude skill. `--no-skill` = completion only. |
 | `completion <zsh\|bash>`                                                        | Print the completion script (for `eval` or Homebrew).                            |
 | `help`, `--help`, `-h`                                                          | Show help.                                                                       |
@@ -170,7 +170,6 @@ rules:
 | ------------------- | ------------------------------------------------------- |
 | `LOCKIT_HOME`       | Store + key directory (default `~/.lockit`).            |
 | `LOCKIT_PASSPHRASE` | Optional: use your own key instead of the auto keyfile. |
-| `LOCKIT_PULL_YES=1` | Skip the `pull` confirmation (non-interactive).         |
 
 ## Security & honest limits
 
