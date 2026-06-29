@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { cmdLs, cmdRun, cmdSet, type Io } from "./commands.js";
 import { cmdImport } from "./import.js";
+import { cmdExport } from "./export.js";
 import { cmdPull } from "./pull.js";
 import { presenceAuthorize } from "./localauth.js";
 import { cmdCompleteList, cmdCompletion } from "./completion.js";
@@ -11,7 +12,7 @@ import { cmdProtect } from "./protect.js";
 import { cmdLock } from "./lock.js";
 
 const USAGE =
-  "usage: lockit <init|set|admit|status|secure|protect|lock|ls|run|import|pull|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
+  "usage: lockit <init|set|admit|status|secure|protect|lock|ls|run|import|export|pull|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
 
 /** Read all of stdin to a string. Only `set` needs the value, so we read lazily. */
 async function readStdin(): Promise<string> {
@@ -90,6 +91,10 @@ async function main(): Promise<number> {
   if (command === "import") {
     const io: Io = { argv, stdin: "", env: process.env, out, err };
     return await cmdImport(io);
+  }
+  if (command === "export") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err };
+    return await cmdExport(io);
   }
   if (command === "pull") {
     const io: Io = {
