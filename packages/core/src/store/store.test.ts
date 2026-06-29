@@ -7,6 +7,7 @@ import {
   removeSecret,
   secretEnv,
   isValidFieldKey,
+  addTag,
 } from "./store.js";
 import type { StoreData, StoredSecret } from "./store.js";
 
@@ -521,6 +522,60 @@ describe("secretEnv — env-only injection map", () => {
       FULL: "exact value with spaces",
       EMPTY: "",
     });
+  });
+});
+
+describe("addTag", () => {
+  it("adds a tag to a secret found by slug", () => {
+    let s = upsertField(emptyStore(), {
+      slug: "pulse",
+      schema: "pulse",
+      key: "API_KEY",
+      type: "env",
+      value: "sk-1",
+    });
+    s = addTag(s, "pulse", "source:plugin-manager");
+    expect(getSecret(s, "pulse")?.tags).toEqual(["source:plugin-manager"]);
+  });
+
+  it("is idempotent: does not add a duplicate tag", () => {
+    let s = upsertField(emptyStore(), {
+      slug: "pulse",
+      schema: "pulse",
+      key: "API_KEY",
+      type: "env",
+      value: "sk-1",
+    });
+    s = addTag(s, "pulse", "source:proj");
+    s = addTag(s, "pulse", "source:proj");
+    expect(getSecret(s, "pulse")?.tags).toEqual(["source:proj"]);
+  });
+
+  it("returns a new StoreData and does not mutate the input store", () => {
+    const start = upsertField(emptyStore(), {
+      slug: "pulse",
+      schema: "pulse",
+      key: "API_KEY",
+      type: "env",
+      value: "sk-1",
+    });
+    const next = addTag(start, "pulse", "source:proj");
+    expect(next).not.toBe(start);
+    expect(getSecret(start, "pulse")?.tags).toEqual([]);
+    expect(getSecret(next, "pulse")?.tags).toEqual(["source:proj"]);
+  });
+
+  it("is a no-op for an unknown slug (returns an equivalent store unchanged)", () => {
+    const start = upsertField(emptyStore(), {
+      slug: "pulse",
+      schema: "pulse",
+      key: "API_KEY",
+      type: "env",
+      value: "sk-1",
+    });
+    const next = addTag(start, "missing/one", "source:proj");
+    expect(next.secrets).toHaveLength(1);
+    expect(getSecret(next, "pulse")?.tags).toEqual([]);
   });
 });
 

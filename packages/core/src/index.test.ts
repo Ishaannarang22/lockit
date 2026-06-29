@@ -98,6 +98,7 @@ describe("@lockit/core barrel re-exports", () => {
         "mergeRegistries",
         "entryFor",
         "providerForEnv",
+        "addTag",
       ].sort(),
     );
   });

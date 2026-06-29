@@ -75,6 +75,23 @@ export function upsertField(store: StoreData, input: UpsertFieldInput): StoreDat
   return { version: 1, secrets };
 }
 
+/** Append a provenance/label tag to a secret (by slug), deduped. Copy-on-write:
+ *  returns a new store and never mutates the input. No-op if the slug is unknown
+ *  or the tag is already present. */
+export function addTag(store: StoreData, slug: string, tag: string): StoreData {
+  const secrets = store.secrets.map((s) => ({
+    ...s,
+    fields: s.fields.map((f) => ({ ...f })),
+    aka: [...s.aka],
+    tags: [...s.tags],
+  }));
+  const sec = secrets.find((s) => s.slug === slug);
+  if (sec && !sec.tags.includes(tag)) {
+    sec.tags.push(tag);
+  }
+  return { version: 1, secrets };
+}
+
 export function removeSecret(store: StoreData, slug: string): StoreData {
   return { version: 1, secrets: store.secrets.filter((s) => s.slug !== slug) };
 }
