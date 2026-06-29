@@ -14,6 +14,15 @@ export { saveStore, loadStore } from "./store/store-persist.js";
 export { lockitHome, storePath } from "./paths.js";
 export { parseDotenv, mergeDotenv } from "./env/dotenv.js";
 export type { DotenvEntry, MergeResult } from "./env/dotenv.js";
+export { parseReferences, serializeReferences } from "./env/reference.js";
+export type { Reference } from "./env/reference.js";
+export {
+  builtinRegistry,
+  mergeRegistries,
+  entryFor,
+  providerForEnv,
+} from "./registry/registry.js";
+export type { RegistryEntry } from "./registry/registry.js";
 export { resolveVar } from "./store/resolve.js";
 export type { ResolveResult } from "./store/resolve.js";
 export {

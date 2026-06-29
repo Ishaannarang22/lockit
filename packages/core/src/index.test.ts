@@ -91,6 +91,12 @@ describe("@lockit/core barrel re-exports", () => {
         "secretEnv",
         "storePath",
         "upsertField",
+        "parseReferences",
+        "serializeReferences",
+        "builtinRegistry",
+        "mergeRegistries",
+        "entryFor",
+        "providerForEnv",
       ].sort(),
     );
   });
