@@ -23,8 +23,8 @@ export {
   providerForEnv,
 } from "./registry/registry.js";
 export type { RegistryEntry } from "./registry/registry.js";
-export { resolveVar } from "./store/resolve.js";
-export type { ResolveResult } from "./store/resolve.js";
+export { resolveVar, resolveRef } from "./store/resolve.js";
+export type { ResolveResult, RefResolveResult } from "./store/resolve.js";
 export {
   emptyVault,
   bindKey,

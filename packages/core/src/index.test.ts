@@ -87,6 +87,7 @@ describe("@lockit/core barrel re-exports", () => {
         "parseDotenv",
         "removeSecret",
         "resolveVar",
+        "resolveRef",
         "saveStore",
         "secretEnv",
         "storePath",
