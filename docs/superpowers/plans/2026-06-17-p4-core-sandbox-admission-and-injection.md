@@ -1,10 +1,10 @@
-# Project-World Sandbox, Human-Gated Admission, and the `kv run` Injection Engine Implementation Plan (Intended)
+# Project-World Sandbox, Human-Gated Admission, and the `lockit run` Injection Engine Implementation Plan (Intended)
 
 > Status: INTENDED — scope-level. Expand into bite-sized failing-test-first TDD steps just-in-time, aligned with the repo state at that time. Plan #1 (docs/superpowers/plans/2026-06-17-p0-scaffold-and-crypto-foundations.md) is the worked example of the target granularity.
 
-**Goal:** Build, in `packages/core`, the project-world sandbox (the admitted set of a project), the human-gated admission flow with pluggable local-auth providers, the `kv run` in-memory injection engine (env + file secrets, output masking, dry-run preview), the audit log, and the agent-safe listing surface — so a project can only use secrets a human has explicitly admitted, and values never reach an agent.
+**Goal:** Build, in `packages/core`, the project-world sandbox (the admitted set of a project), the human-gated admission flow with pluggable local-auth providers, the `lockit run` in-memory injection engine (env + file secrets, output masking, dry-run preview), the audit log, and the agent-safe listing surface — so a project can only use secrets a human has explicitly admitted, and values never reach an agent.
 
-**Depends on:** Plan #3 (core: encrypted store + Sets/Slots vault model + strict 0/1/N resolver) and Plan #1 (the `@kv/crypto` at-rest seal/open primitives). Builds directly on the store, the Secret/Slot types, and the resolver delivered by Plan #3.
+**Depends on:** Plan #3 (core: encrypted store + Sets/Slots vault model + strict 0/1/N resolver) and Plan #1 (the `@lockit/crypto` at-rest seal/open primitives). Builds directly on the store, the Secret/Slot types, and the resolver delivered by Plan #3.
 
 **Packages touched:** `packages/core` (all new modules here). No `packages/cli` work — the CLI wiring of these surfaces is a later plan; this plan exposes the programmatic core API and proves its security properties with tests.
 
@@ -15,11 +15,11 @@
 - **The project world (admitted set).** A per-project record of exactly which secret slugs have been admitted into the project's sandbox. The global store is the protected source; the project world is the only set a project may decrypt and inject from. The agent can never read the global store directly — it can only _request_ admission.
 - **The admission flow.** Request a set of secrets → build a confirmation box that lists **all** requested keys (slug, schema, field names, `hasValue`) → call `AuthProvider.authenticate()` (proof of human presence) → on success, admit the whole set into the project world. Batch semantics: one auth admits the entire batch in a single confirmation.
 - **The `AuthProvider` interface and implementations.** A pluggable proof-of-presence gate: macOS Touch ID / biometric via LocalAuthentication, OS-password fallback, and a passphrase-prompt demo fallback. Plus a deterministic mock provider for tests that the agent path can never satisfy.
-- **The unlock cache + auto-lock** (see [ADR-0009](../../adr/0009-local-unlock-model.md) and the [unlock-model spec](../specs/2026-06-17-local-unlock-model-design.md)). After one passphrase unlock, store the **DEK** (from P3's wrapped-DEK envelope) in the OS keychain, OS-encrypted with a Secure-Enclave-held key, released under a Touch-ID access policy — so daily use is passphrase-once-then-fingerprint. Auto-lock evicts the cached DEK on system sleep, an idle timeout (default 15 min, configurable), and explicit `kv lock`.
-- **The per-session vs per-use access-policy dial.** One mechanism, two policies on the keychain item: **per-session** for the user's own `kv run` (smooth), and **per-use** for **agent-initiated** access — a native fingerprint prompt _every single time_, showing which app + which keys, releasing the value into the child process only. The agent never sees the passphrase or value; a human fingerprint is structurally in the loop on every agent access.
-- **Off-device passphrase fallback.** Where there is no Secure Enclave (SSH, CI), unlock falls back to the master passphrase: typed at a prompt over SSH, or supplied via `KV_PASSPHRASE` in CI (opt-in, documented as the deliberately-weaker mode). Wired through the CLI in P5.
-- **The injection engine for `kv run`.** Resolve slots (via the Plan #3 resolver) for the selected environment, decrypt only the needed values **in memory**, spawn the child process with env vars set for its lifetime, **mask** every secret value in the child's stdout/stderr, materialize `type:"file"` secrets to a `0600` tmpfs temp file (set the path env var) and **shred** them on exit, write nothing to disk.
-- **`kv run --dry-run`.** The agent-safe verification primitive: print the inject env-var **names** that will be set (values masked), and flag duplicate inject names, unfilled open slots, and ambiguous resolution — without running anything or revealing a value.
+- **The unlock cache + auto-lock** (see [ADR-0009](../../adr/0009-local-unlock-model.md) and the [unlock-model spec](../specs/2026-06-17-local-unlock-model-design.md)). After one passphrase unlock, store the **DEK** (from P3's wrapped-DEK envelope) in the OS keychain, OS-encrypted with a Secure-Enclave-held key, released under a Touch-ID access policy — so daily use is passphrase-once-then-fingerprint. Auto-lock evicts the cached DEK on system sleep, an idle timeout (default 15 min, configurable), and explicit `lockit lock`.
+- **The per-session vs per-use access-policy dial.** One mechanism, two policies on the keychain item: **per-session** for the user's own `lockit run` (smooth), and **per-use** for **agent-initiated** access — a native fingerprint prompt _every single time_, showing which app + which keys, releasing the value into the child process only. The agent never sees the passphrase or value; a human fingerprint is structurally in the loop on every agent access.
+- **Off-device passphrase fallback.** Where there is no Secure Enclave (SSH, CI), unlock falls back to the master passphrase: typed at a prompt over SSH, or supplied via `LOCKIT_PASSPHRASE` in CI (opt-in, documented as the deliberately-weaker mode). Wired through the CLI in P5.
+- **The injection engine for `lockit run`.** Resolve slots (via the Plan #3 resolver) for the selected environment, decrypt only the needed values **in memory**, spawn the child process with env vars set for its lifetime, **mask** every secret value in the child's stdout/stderr, materialize `type:"file"` secrets to a `0600` tmpfs temp file (set the path env var) and **shred** them on exit, write nothing to disk.
+- **`lockit run --dry-run`.** The agent-safe verification primitive: print the inject env-var **names** that will be set (values masked), and flag duplicate inject names, unfilled open slots, and ambiguous resolution — without running anything or revealing a value.
 - **The audit log.** Append-only local record of admissions and uses (and refused/failed admissions), so exfiltration attempts and unexpected access leave a trail.
 - **The agent-safe listing surface.** A value-free projection of secrets and project-world state (names / schema / field keys / tags / `hasValue` booleans only) that the CLI and plugin consume.
 
@@ -51,7 +51,7 @@
 
 ## Key components & responsibilities
 
-**Project world (admitted set).** A small, gitignored local record (alongside `./.kv/local.json` per the data model) of admitted slugs for a project. The injection engine refuses to decrypt any secret whose slug is not in this set, regardless of what a slot resolves to.
+**Project world (admitted set).** A small, gitignored local record (alongside `./.lockit/local.json` per the data model) of admitted slugs for a project. The injection engine refuses to decrypt any secret whose slug is not in this set, regardless of what a slot resolves to.
 
 ```ts
 interface ProjectWorld {
@@ -79,7 +79,7 @@ interface AuthProvider {
 
 **Admission flow.** Pure orchestration over the resolver, the confirmation-box builder, the `AuthProvider`, the project world, and the audit log. Batch: a request carrying N keys produces one `AuthRequest`, one `authenticate()` call, and (on `ok`) one atomic admit of all N. On `ok === false`, nothing is admitted and a `refused` audit entry is written. The agent path is structurally forced through this same function — there is no "admit without auth" code path.
 
-**Injection engine (`kv run`).** Resolves each slot (Plan #3 strict 0/1/N) for the selected env, intersects against the project world, decrypts only needed values in memory via `@kv/crypto`, constructs the child env map (env-type → value; file-type → tmpfs path), spawns the child, pipes its stdout/stderr through the masking transform, and on exit shreds any materialized files. Plaintext is never written to disk; the parent process env is never mutated (values live only in the child's env).
+**Injection engine (`lockit run`).** Resolves each slot (Plan #3 strict 0/1/N) for the selected env, intersects against the project world, decrypts only needed values in memory via `@lockit/crypto`, constructs the child env map (env-type → value; file-type → tmpfs path), spawns the child, pipes its stdout/stderr through the masking transform, and on exit shreds any materialized files. Plaintext is never written to disk; the parent process env is never mutated (values live only in the child's env).
 
 **Masking.** A streaming transform that replaces any occurrence of an injected secret value (and file contents where feasible) with a fixed mask token in the child's stdout/stderr before it reaches the terminal/transcript.
 
@@ -98,23 +98,23 @@ interface AuthProvider {
 - **The agent cannot bypass admission.** With the mock `AuthProvider` configured to deny (the agent's situation: it cannot satisfy proof-of-presence), the admission flow admits nothing and the project world stays empty; there is no alternate code path that admits without a successful `authenticate()`.
 - **Auth is mandatory and called exactly once per batch.** Admitting N keys triggers exactly one `authenticate()` call (asserted via the mock's call count) and, on success, admits all N atomically — proving batch one-auth-admits-all.
 - **Refusal admits nothing.** When `authenticate()` returns `ok: false`, no slug enters the project world and a `refused` audit entry is recorded.
-- **Injection isolation.** After `kv run`, the resolved value is present in the spawned child's environment but is **absent from the parent process's `process.env`** and from any on-disk artifact; the test inspects the child env (e.g. child echoes a marker proving it received the var) and asserts the parent never saw it.
-- **Sandbox cannot be bypassed at run time.** A slot that resolves to a slug **not** in the project world causes `kv run` to refuse to decrypt/inject that secret (hard error), even though the secret exists in the global store.
+- **Injection isolation.** After `lockit run`, the resolved value is present in the spawned child's environment but is **absent from the parent process's `process.env`** and from any on-disk artifact; the test inspects the child env (e.g. child echoes a marker proving it received the var) and asserts the parent never saw it.
+- **Sandbox cannot be bypassed at run time.** A slot that resolves to a slug **not** in the project world causes `lockit run` to refuse to decrypt/inject that secret (hard error), even though the secret exists in the global store.
 - **Output masking.** A child that prints its injected secret value to stdout/stderr has that value replaced by the mask token before it reaches the captured output; the raw value never appears in what the parent/terminal sees.
 - **File materialize-and-shred.** A file-type secret is materialized to a `0600` tmpfs path (permissions asserted), the path env var points at it, the child can read it during its lifetime, and after the child exits the temp file **no longer exists** (and is shredded, not merely unlinked-after-leak).
 - **Dry-run contains NO values.** `--dry-run` output lists inject env-var **names** only; a test scans the entire output and asserts no secret value (and no masked-but-reconstructable value) appears, and asserts it correctly flags a duplicate inject name, an open-unfilled slot, and an ambiguous resolution.
 - **Audit entries recorded.** Admissions, uses, and refusals each append a value-free audit entry; a test reads the log back and asserts the actions, slugs, and auth method are present and that no entry contains a secret value.
 - **Agent-safe listing never leaks a value.** The agent-view projection of a fully-populated secret emits slug/schema/fieldKeys/tags/`hasValue`/`admitted` and a test asserts no field of the output equals any underlying secret value.
-- **No-disk-write invariant.** Across a full `kv run`, a test asserts no plaintext value is written anywhere on disk except the explicitly-materialized `0600` tmpfs file, which is gone after exit.
+- **No-disk-write invariant.** Across a full `lockit run`, a test asserts no plaintext value is written anywhere on disk except the explicitly-materialized `0600` tmpfs file, which is gone after exit.
 
 ---
 
 ## Out of scope / deferred
 
-- **CLI command wiring** (`kv run`, `kv status`, the interactive chooser, `--dry-run` flag parsing, terminal rendering) — a later plan; this plan delivers the programmatic core surface only.
+- **CLI command wiring** (`lockit run`, `lockit status`, the interactive chooser, `--dry-run` flag parsing, terminal rendering) — a later plan; this plan delivers the programmatic core surface only.
 - **The Claude Code plugin** (skill + egress-warning hooks) — later plan.
 - **End-to-end sharing, identity, devices, and the optional server** — later plans; admission and injection here are purely local.
-- **The optional re-auth-per-use policy dial** (e.g. for service-role/prod keys) — noted as a future dial; default is no re-auth on `kv run`. This plan implements the default; the dial is deferred.
+- **The optional re-auth-per-use policy dial** (e.g. for service-role/prod keys) — noted as a future dial; default is no re-auth on `lockit run`. This plan implements the default; the dial is deferred.
 - **Optional `cd`/direnv-style hooks and eager resolution** — explicitly rejected for v1 (no daemon, no filesystem watcher); resolution stays lazy at run/status.
 - **The Sets/Slots model, the store, and the strict 0/1/N resolver themselves** — delivered by Plan #3; consumed here.
 

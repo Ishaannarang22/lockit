@@ -12,7 +12,7 @@ export {
 } from "./store/store.js";
 export type { StoreData, StoredSecret, StoredField, UpsertFieldInput } from "./store/store.js";
 export { saveStore, loadStore } from "./store/store-persist.js";
-export { lockitHome, storePath } from "./paths.js";
+export { identityPath, lockitHome, storePath } from "./paths.js";
 export { parseDotenv, mergeDotenv } from "./env/dotenv.js";
 export type { DotenvEntry, MergeResult } from "./env/dotenv.js";
 export { parseReferences, serializeReferences } from "./env/reference.js";
@@ -42,3 +42,15 @@ export {
 export type { Vault } from "./project/vault.js";
 export { parseRef, resolveBinding, resolveVaultEnv, resolveAdmit } from "./project/admission.js";
 export type { Ref, BindingResolution, AdmitResolution } from "./project/admission.js";
+export {
+  loadOrCreateIdentity,
+  parsePublicIdentity,
+  publicIdentity,
+  serializePublicIdentity,
+} from "./identity/identity-state.js";
+export { acceptSecretShare, createSecretShare } from "./sharing/sharing.js";
+export type {
+  AcceptSecretShareOptions,
+  AcceptSecretShareResult,
+  CreateSecretShareOptions,
+} from "./sharing/sharing.js";

@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-This directory records the significant architecture decisions for **kv**, an
+This directory records the significant architecture decisions for **lockit**, an
 open-source, local-first, AI-agent-safe developer secrets manager.
 
 Each ADR captures a single decision: the context that forced it, the decision

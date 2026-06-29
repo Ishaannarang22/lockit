@@ -1,6 +1,6 @@
 # Data Model: Sets + Slots
 
-This document specifies the `kv` data model: how secrets are stored, how
+This document specifies the `lockit` data model: how secrets are stored, how
 projects declare what they need, and how the two are connected at run time
 without ever copying a value.
 
@@ -16,7 +16,7 @@ Related docs:
 - [`./architecture.md`](./architecture.md) — package layout and where this model lives (`packages/core`).
 - [`./threat-model.md`](./threat-model.md) — the project-world sandbox, human-gated admission, and agent-safety guarantees.
 - [`./security-crypto.md`](./security-crypto.md) — how values are encrypted at rest and shared end-to-end (OrgMesh).
-- The `kv` commands that operate on this model are listed in the CLI surface section below; a full standalone command reference is forthcoming.
+- The `lockit` commands that operate on this model are listed in the CLI surface section below; a full standalone command reference is forthcoming.
 
 ---
 
@@ -27,8 +27,8 @@ There are two halves to the model, and keeping them separate is the whole idea.
 | Concept | Holds values? | Committed to git? | Lives in |
 | --- | --- | --- | --- |
 | **Global store** | **Yes** (encrypted at rest) | **No** — local to your machine / synced E2E | `packages/core` store |
-| **Project vault** | **No** — value-free requirements only | **Yes** — `./.kv/vault.json` | the project repo |
-| **Local resolution cache** | No — records *which* secret fills an open slot | **No** — gitignored `./.kv/local.json` | the project, per machine |
+| **Project vault** | **No** — value-free requirements only | **Yes** — `./.lockit/vault.json` | the project repo |
+| **Local resolution cache** | No — records *which* secret fills an open slot | **No** — gitignored `./.lockit/local.json` | the project, per machine |
 
 - A **Secret** is the unit stored in the global store: a typed bag of one or
   more **fields**, identified by a portable human **slug** and tagged with a
@@ -108,7 +108,7 @@ pinned otherwise.
 
 > Note: the `value` of each field is **not** shown here and never appears in
 > any listing output — only `hasValue: true`. The plaintext lives encrypted in
-> the store and is only ever decrypted in memory at `kv run`. See §11.
+> the store and is only ever decrypted in memory at `lockit run`. See §11.
 
 ### 2.5 JSON shape — multi-field Set (a Supabase backend)
 
@@ -153,9 +153,9 @@ never blocks you from storing a Secret.
 
 ## 4. The project vault: slots
 
-The project vault (`./.kv/vault.json`) is **value-free**. It is a committed
+The project vault (`./.lockit/vault.json`) is **value-free**. It is a committed
 list of **slots** — declared requirements — and nothing else. Cloning a repo
-never grants access to any secret; it only tells `kv` what the project needs.
+never grants access to any secret; it only tells `lockit` what the project needs.
 
 A slot has this shape:
 
@@ -201,7 +201,7 @@ project's expected env vars.
 - **Unique-inject-name invariant.** Within a single vault, the **union of all
   injected env-var names must be unique**. Two slots (or two entries) producing
   the same env var is a **hard error** — caught at link time and again at
-  `kv run --dry-run`. This prevents one secret from silently shadowing another.
+  `lockit run --dry-run`. This prevents one secret from silently shadowing another.
 
 ---
 
@@ -212,7 +212,7 @@ of the value. There is exactly one source of truth — the Secret in the global
 store.
 
 - **Rotate once, everyone updates.** Change the value in the store and every
-  project that references it picks up the new version on its next `kv run`. No
+  project that references it picks up the new version on its next `lockit run`. No
   hunting through `.env` files.
 - **Opt-in bundling.** For a standalone or offline project that must carry its
   own secrets, you can opt in to **bundling**: an explicit, deliberate
@@ -258,7 +258,7 @@ Per-environment (`dev` / `staging` / `prod`) is **in scope for v1** as an
 - The default is **single-context**: most projects need no environment axis at
   all, and you should not opt in until you do.
 - When you opt in, a slot can resolve to different Secrets per environment. The
-  active environment is selected at run time (e.g. `kv run --env prod -- ...`).
+  active environment is selected at run time (e.g. `lockit run --env prod -- ...`).
 
 ```json
 {
@@ -311,15 +311,15 @@ The slot maps the file field to the env var that should hold its **path**:
 }
 ```
 
-At `kv run` (§9), the contents are written to a temp file on tmpfs with `0600`
+At `lockit run` (§9), the contents are written to a temp file on tmpfs with `0600`
 permissions, `GOOGLE_APPLICATION_CREDENTIALS` is set to that path, and the file
 is shredded when the child process exits.
 
 ---
 
-## 9. Injection at run time (`kv run`)
+## 9. Injection at run time (`lockit run`)
 
-`kv run` is the only path that touches plaintext, and it is deliberately
+`lockit run` is the only path that touches plaintext, and it is deliberately
 ephemeral. In summary, it:
 
 1. resolves every slot (§6) for the selected environment (§7);
@@ -330,7 +330,7 @@ ephemeral. In summary, it:
 5. **masks** all secret values in the child's stdout/stderr;
 6. writes nothing to disk; **shreds** temp files on exit.
 
-`kv run --dry-run` is the **agent-safe verification primitive**: it prints the
+`lockit run --dry-run` is the **agent-safe verification primitive**: it prints the
 env-var **names** that will be set (values masked) and flags duplicate inject
 names (§4.2), unfilled open slots, and ambiguous resolution — without running
 anything or revealing a value. See [`./threat-model.md`](./threat-model.md) for the
@@ -341,7 +341,7 @@ full agent-safety model and honest limits.
 ## 10. The local resolution cache
 
 Open slots (§4.1) are filled per machine. The **local resolution cache**
-(`./.kv/local.json`, **gitignored**) records how each open slot was filled on
+(`./.lockit/local.json`, **gitignored**) records how each open slot was filled on
 *this* machine, so you are not re-prompted every run.
 
 ```json
@@ -366,7 +366,7 @@ re-resolves (and, where ambiguous, re-prompts).
 
 ## 11. Values never leak into listings or agent context
 
-Every model-facing surface — `kv list`, `kv status`, `kv run --dry-run`, and
+Every model-facing surface — `lockit list`, `lockit status`, `lockit run --dry-run`, and
 the ambiguity chooser — emits **only** slugs, schemas, field keys, tags, and
 `hasValue` booleans. Never a value, not even masked. Values flow from the store
 to the child process **in memory** and never enter an agent's context or the
@@ -386,63 +386,63 @@ How the model handles each headline use case:
 | **Two different Supabases** | Store `supabase/acme` and `supabase/blog`, both schema `supabase`, each with its own `SUPABASE_URL` etc. The store is keyed by slug, so the identical field names **never collide**. |
 | **Two projects sharing one Supabase** | Both project vaults declare a **pinned** slot `to: "supabase/acme"`. Both reference the same Secret — one source of truth; rotating `supabase/acme` updates both projects. |
 | **Disambiguation** | A project has an **open** `supabase` slot and the store has both `supabase/acme` and `supabase/blog`. The resolver returns a hard `AMBIGUOUS` error with a numbered, value-free chooser (slug/schema/tags). The developer picks; the choice is written to the local cache (§10). |
-| **Injection** | `kv run` resolves slots, decrypts in memory, sets exact env-var names from the `inject` map (env values inline; file values via a tmpfs path), masks output, and shreds on exit. `--dry-run` previews the names safely. |
+| **Injection** | `lockit run` resolves slots, decrypts in memory, sets exact env-var names from the `inject` map (env values inline; file values via a tmpfs path), masks output, and shreds on exit. `--dry-run` previews the names safely. |
 | **Sharing** | A Secret is shared to another device or teammate **encrypted end-to-end** (see [`./security-crypto.md`](./security-crypto.md)). The recipient gets the referenced Secret into their store by slug; their project vaults then resolve against it exactly as yours do. A share is a point-in-time copy — later rotation does not auto-propagate unless re-shared. |
-| **New-developer onboarding** | Clone the repo: the committed vault declares slots but holds **no values**. The new developer fills **open** slots with their own secrets (or is granted **pinned** shared infrastructure via sharing) and runs `kv status` / `kv run`. Resolution is **lazy** — it triggers at run/status, never on clone. |
+| **New-developer onboarding** | Clone the repo: the committed vault declares slots but holds **no values**. The new developer fills **open** slots with their own secrets (or is granted **pinned** shared infrastructure via sharing) and runs `lockit status` / `lockit run`. Resolution is **lazy** — it triggers at run/status, never on clone. |
 
 ---
 
 ## 13. CLI surface that operates on this model
 
-The subset of the `kv` command line that reads or writes the data model. (Full
+The subset of the `lockit` command line that reads or writes the data model. (Full
 reference, flags, and output formats will live in a dedicated CLI reference (forthcoming).)
 
 **Secrets in the global store**
 
-- `kv set <slug> [--schema <name>] [FIELD=VALUE ...]` — create or update a
+- `lockit set <slug> [--schema <name>] [FIELD=VALUE ...]` — create or update a
   Secret; supports `--file FIELD=<path>` for `type: "file"` fields.
-- `kv get <slug>` — show a Secret's structure (slugs, schema, field keys,
+- `lockit get <slug>` — show a Secret's structure (slugs, schema, field keys,
   `hasValue`) — never values.
-- `kv list [--schema <name>] [--tag <tag>]` — list Secrets; value-free output.
-- `kv rm <slug>` — remove a Secret.
-- `kv rename <old-slug> <new-slug>` — rename, recording the old slug in `aka`.
-- `kv rotate <slug>` — create a new version of a Secret's value(s).
-- `kv tag <slug> <tag> ...` / `kv untag <slug> <tag> ...` — manage tags.
+- `lockit list [--schema <name>] [--tag <tag>]` — list Secrets; value-free output.
+- `lockit rm <slug>` — remove a Secret.
+- `lockit rename <old-slug> <new-slug>` — rename, recording the old slug in `aka`.
+- `lockit rotate <slug>` — create a new version of a Secret's value(s).
+- `lockit tag <slug> <tag> ...` / `lockit untag <slug> <tag> ...` — manage tags.
 
 **Schemas**
 
-- `kv schema list` — show built-in registry schemas and their field shapes.
-- `kv schema show <name>` — show expected fields for a schema.
+- `lockit schema list` — show built-in registry schemas and their field shapes.
+- `lockit schema show <name>` — show expected fields for a schema.
 
 **Project vault and slots**
 
-- `kv init` — create `./.kv/vault.json` for the current project.
-- `kv link <schema> [--pinned <slug> | --open] [--inject FIELD=ENV_VAR ...]` —
+- `lockit init` — create `./.lockit/vault.json` for the current project.
+- `lockit link <schema> [--pinned <slug> | --open] [--inject FIELD=ENV_VAR ...]` —
   add or update a slot. Enforces the unique-inject-name invariant (§4.2).
-- `kv unlink <schema|slot-id>` — remove a slot.
-- `kv vault show` — show the vault's slots (value-free).
+- `lockit unlink <schema|slot-id>` — remove a slot.
+- `lockit vault show` — show the vault's slots (value-free).
 
 **Resolution, environments, and running**
 
-- `kv status [--env <name>]` — lazily resolve all slots and report each as
+- `lockit status [--env <name>]` — lazily resolve all slots and report each as
   resolved / missing / open-unfilled / ambiguous (value-free).
-- `kv use <schema> <slug> [--env <name>]` — fill an **open** slot for this
+- `lockit use <schema> <slug> [--env <name>]` — fill an **open** slot for this
   machine; written to the local cache (§10).
-- `kv run [--env <name>] [--dry-run] -- <command> ...` — inject and run (§9);
+- `lockit run [--env <name>] [--dry-run] -- <command> ...` — inject and run (§9);
   `--dry-run` previews env-var names and flags duplicates, unfilled open slots,
   and ambiguity.
 
 **Sharing (P3/P4 — see [`./security-crypto.md`](./security-crypto.md))**
 
-- `kv share <slug> --to <recipient>` — share a Secret end-to-end encrypted.
-- `kv bundle [--out <path>]` — opt-in materialize referenced values into a
+- `lockit share <slug> --to <recipient>` — share a Secret end-to-end encrypted.
+- `lockit bundle [--out <path>]` — opt-in materialize referenced values into a
   bundle for a standalone/offline project (§5).
 
 ---
 
 ## 14. Limitations (stated honestly)
 
-- **No account recovery in this version.** `kv` uses true zero-knowledge
+- **No account recovery in this version.** `lockit` uses true zero-knowledge
   encryption. If you lose your passphrase **and** all your devices, your data
   **cannot** be recovered — there is no backdoor. This is an
   intentional, documented limitation. Keep a device and your passphrase safe.

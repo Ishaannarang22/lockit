@@ -8,7 +8,7 @@ import type { StoreData } from "./store.js";
 
 /** Run a body with a fresh temp dir, always cleaned up. */
 async function withTempDir<T>(body: (dir: string) => Promise<T>): Promise<T> {
-  const dir = await mkdtemp(join(tmpdir(), "kv-persist-"));
+  const dir = await mkdtemp(join(tmpdir(), "lockit-persist-"));
   try {
     return await body(dir);
   } finally {
@@ -81,7 +81,7 @@ describe("saveStore — on-disk file mode and atomicity", () => {
 
   it("creates the parent directory with mode 0700", async () => {
     await withTempDir(async (dir) => {
-      const home = join(dir, "kvhome");
+      const home = join(dir, "lockithome");
       const path = join(home, "store.json");
       await saveStore(emptyStore(), PASS, path);
       expect((await stat(home)).mode & 0o777).toBe(0o700);

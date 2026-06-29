@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-**kv** is a developer-facing CLI that doubles as the interface used by AI
+**lockit** is a developer-facing CLI that doubles as the interface used by AI
 coding agents. It ships a security-critical cryptographic core, an optional
 self-hosted sync server, and a Claude Code plugin. We need a single language
 that:
@@ -18,7 +18,7 @@ that:
 - lets the CLI, server, and plugin share code without a language boundary.
 
 The plugin target (Claude Code) and the broader Node tooling ecosystem also
-weigh heavily: the plugin depends on the `kv` CLI, and the npm ecosystem
+weigh heavily: the plugin depends on the `lockit` CLI, and the npm ecosystem
 carries the audited crypto primitives we intend to use.
 
 ## Decision

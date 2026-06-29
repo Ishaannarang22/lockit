@@ -1,8 +1,8 @@
-# Contributing to kv
+# Contributing to lockit
 
-Thanks for your interest in contributing to **kv** (`key_manager`), an open-source, local-first, AI-agent-safe developer secrets manager. This guide explains how to get a development environment running, how the monorepo is laid out, and the engineering standards we expect from every change.
+Thanks for your interest in contributing to **lockit** (`key_manager`), an open-source, local-first, AI-agent-safe developer secrets manager. This guide explains how to get a development environment running, how the monorepo is laid out, and the engineering standards we expect from every change.
 
-> **kv** is a security product. The bar for changes to the cryptographic and core packages is intentionally high. Please read the [Security-critical packages](#security-critical-packages) and [Testing and TDD](#testing-and-tdd) sections before sending code that touches them.
+> **lockit** is a security product. The bar for changes to the cryptographic and core packages is intentionally high. Please read the [Security-critical packages](#security-critical-packages) and [Testing and TDD](#testing-and-tdd) sections before sending code that touches them.
 
 ## Table of contents
 
@@ -38,7 +38,7 @@ You will need:
 
 - **Git** — for cloning and contributing.
 
-No account, server, or third-party service is required to develop or use kv locally. The optional self-hosted sync server is a separate, opt-in component.
+No account, server, or third-party service is required to develop or use lockit locally. The optional self-hosted sync server is a separate, opt-in component.
 
 ## Getting started
 
@@ -56,7 +56,7 @@ Build everything once to make sure your toolchain is healthy:
 pnpm build
 ```
 
-You should now be able to run the CLI from the workspace. A typical loop is to run the package you are working on in watch mode and exercise the `kv` binary against it.
+You should now be able to run the CLI from the workspace. A typical loop is to run the package you are working on in watch mode and exercise the `lockit` binary against it.
 
 ## Common commands
 
@@ -75,8 +75,8 @@ All commands are run from the repository root unless noted. pnpm fans them out a
 To target a single package, use pnpm's filter flag, for example:
 
 ```bash
-pnpm --filter @kv/crypto test
-pnpm --filter @kv/core typecheck
+pnpm --filter @lockit/crypto test
+pnpm --filter @lockit/core typecheck
 ```
 
 Before opening a pull request, make sure the full quality gate is green locally — this is the same gate CI runs:
@@ -99,13 +99,13 @@ packages/
              project-world sandbox), the store (encrypted at-rest persistence —
              the global store plus per-project vaults), and auth/admission
              gating (local presence auth).
-  cli/       The `kv` binary — the universal human AND agent interface.
+  cli/       The `lockit` binary — the universal human AND agent interface.
   server/    Optional self-hosted end-to-end sync/sharing server for a team:
              members, devices, sharing, a shared team vault, Key Transparency,
              and OPAQUE login. A relay that only ever holds ciphertext.
-plugin/      The Claude Code plugin — skill(s) + hooks. Teaches agent-safe `kv`
+plugin/      The Claude Code plugin — skill(s) + hooks. Teaches agent-safe `lockit`
              usage; hooks add guardrails (for example, warn if a raw secret is
-             about to be written into a file or command). Depends on the `kv` CLI.
+             about to be written into a file or command). Depends on the `lockit` CLI.
 docs/        Documentation, including architecture decision records (docs/adr).
 ```
 
@@ -126,7 +126,7 @@ A note on dependency direction: `crypto` depends on nothing in the workspace. `c
 When you touch these packages, your change is expected to preserve and, where relevant, add tests for the following properties:
 
 - **Crypto round-trips** — encrypt/decrypt, wrap/unwrap, sign/verify all reverse correctly.
-- **Injection isolation** — `kv run` decrypts in memory only, sets env vars for the child's lifetime, writes nothing to disk, and shreds file-type secrets on exit.
+- **Injection isolation** — `lockit run` decrypts in memory only, sets env vars for the child's lifetime, writes nothing to disk, and shreds file-type secrets on exit.
 - **Output masking** — secret values are masked in child `stdout`/`stderr`.
 - **Tamper detection** — recipient-set and payload tampering is detected (signature + header HMAC).
 - **The sandbox-cannot-be-bypassed property** — a project can only use keys that have been admitted to its project world; the agent can never pull from the global store directly.
@@ -191,7 +191,7 @@ Once approved and green, a maintainer will merge.
 
 ## AI-assisted contributions
 
-kv is designed to be safe for AI agents to use, and we welcome AI-assisted contributions. If you use an AI coding assistant (including the Claude Code plugin in [`plugin/`](./plugin/)), please read [`AGENTS.md`](./AGENTS.md) first. It describes how agents should work in this repository, the agent-safety invariants to uphold, and the conventions that keep automated changes reviewable. You remain responsible for any code you submit — review it, test it, and make sure it meets the standards in this guide.
+lockit is designed to be safe for AI agents to use, and we welcome AI-assisted contributions. If you use an AI coding assistant (including the Claude Code plugin in [`plugin/`](./plugin/)), please read [`AGENTS.md`](./AGENTS.md) first. It describes how agents should work in this repository, the agent-safety invariants to uphold, and the conventions that keep automated changes reviewable. You remain responsible for any code you submit — review it, test it, and make sure it meets the standards in this guide.
 
 ## License
 

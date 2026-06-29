@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-**kv** uses true zero-knowledge encryption: all encryption and decryption is
+**lockit** uses true zero-knowledge encryption: all encryption and decryption is
 client-side, and there is no operator master key (see
 [ADR 0004](0004-orgmesh-zero-knowledge-crypto.md)). A direct and unavoidable
 consequence is the **recovery trilemma**: you cannot have all three of

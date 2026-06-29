@@ -1,6 +1,6 @@
 # Glossary
 
-This glossary defines every domain term used across the `kv` project precisely,
+This glossary defines every domain term used across the `lockit` project precisely,
 for both human readers and AI agents. Entries are intentionally short and link to
 related terms. Terms are grouped by area; within each group they build on one
 another.
@@ -72,7 +72,7 @@ never read the Global Store directly. See [`./architecture.md`](./architecture.m
 
 ### Project Vault
 
-A committed, **value-free** file (for example `./.kv/vault.json`) that lists the
+A committed, **value-free** file (for example `./.lockit/vault.json`) that lists the
 [Slots](#slot) a project requires. It records requirements and bindings, never
 values. Contrast with the [Local Resolution Cache](#local-resolution-cache).
 
@@ -104,7 +104,7 @@ the exact env-var name(s) that [Injection](#injection) will set. One Field may
 map to several names (for example `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and
 `VITE_SUPABASE_URL`). **Invariant:** the union of all injected env-var names
 within a single [Project Vault](#project-vault) must be unique; a duplicate is a
-hard error at [Link](#link) time and at `kv run --dry-run`.
+hard error at [Link](#link) time and at `lockit run --dry-run`.
 
 ### Environment (dev/staging/prod)
 
@@ -149,7 +149,7 @@ guessing — it must surface the choice. See [Agent-safety](#agent-safety).
 
 ### Local Resolution Cache
 
-A gitignored file (for example `./.kv/local.json`) that records how this
+A gitignored file (for example `./.lockit/local.json`) that records how this
 machine's [Open Slots](#open-slot) were filled. It is a machine-local
 convenience and is never committed; contrast with the
 [Project Vault](#project-vault).
@@ -189,7 +189,7 @@ is a core, tested security property. See [`./threat-model.md`](./threat-model.md
 The human-gated act of bringing a [Secret](#secret) into a
 [Project World](#project-world). Every admission requires **human confirmation**
 plus **local auth** (see [Local Auth](#local-auth)) — proof of human presence
-that an agent cannot satisfy. Auth happens once at admission; later `kv run`
+that an agent cannot satisfy. Auth happens once at admission; later `lockit run`
 does not re-authenticate by default.
 
 ### Batch admission
@@ -202,7 +202,7 @@ confirmation box and a single [Local Auth](#local-auth) admits the whole batch.
 The local presence check required for [Admission](#admission) — Touch ID, OS
 password, or biometric (macOS uses LocalAuthentication / Touch ID; the fallback
 is the OS keychain or password; a demo may use a passphrase prompt). Re-auth on
-each `kv run` is an optional policy dial (for example for service-role or prod
+each `lockit run` is an optional policy dial (for example for service-role or prod
 keys), not the default.
 
 ### Auto-fill (auto-fill but tell me)
@@ -214,17 +214,17 @@ confirm-and-auth gate.
 
 ### Lazy resolution
 
-Resolution is triggered only at `kv run` or `kv status` — never on `git clone`.
+Resolution is triggered only at `lockit run` or `lockit status` — never on `git clone`.
 There is no daemon and no filesystem watcher (an optional, opt-in `direnv`-style
 `cd` hook may come later).
 
 ### Injection
 
-What `kv run` does: it decrypts the needed [Secrets](#secret) **in memory only**,
+What `lockit run` does: it decrypts the needed [Secrets](#secret) **in memory only**,
 spawns the child process with the env vars set for its lifetime,
 [Masks](#masking) secret values in the child's stdout/stderr, writes nothing to
 disk, and shreds on exit. [file-type Fields](#file-type-field) materialize a temp
-file, set the path env var, and shred it. `kv run --dry-run` prints the env-var
+file, set the path env var, and shred it. `lockit run --dry-run` prints the env-var
 **names** that will be set (values masked) and flags duplicate inject names (see
 [Inject map](#inject-map)), unfilled [Open Slots](#open-slot), and
 [Ambiguity](#ambiguity) — the agent-safe verification primitive.

@@ -15,6 +15,14 @@ import {
   openWithPassphrase,
   wrapKey,
   unwrapKey,
+  assertIdentityId,
+  createShareArtifact,
+  generateSharingIdentity,
+  identityId,
+  openShareArtifact,
+  publicIdentityFromWire,
+  publicIdentityToWire,
+  publicSharingIdentity,
 } from "./index.js";
 
 // Exercises the public barrel (index.ts) — the sole entry point downstream
@@ -46,6 +54,14 @@ describe("@lockit/crypto barrel: exported functions are present and callable", (
     ["openWithPassphrase", openWithPassphrase],
     ["wrapKey", wrapKey],
     ["unwrapKey", unwrapKey],
+    ["assertIdentityId", assertIdentityId],
+    ["createShareArtifact", createShareArtifact],
+    ["generateSharingIdentity", generateSharingIdentity],
+    ["identityId", identityId],
+    ["openShareArtifact", openShareArtifact],
+    ["publicIdentityFromWire", publicIdentityFromWire],
+    ["publicIdentityToWire", publicIdentityToWire],
+    ["publicSharingIdentity", publicSharingIdentity],
   ];
 
   for (const [name, fn] of fns) {
@@ -63,10 +79,18 @@ describe("@lockit/crypto barrel: exported functions are present and callable", (
         "NONCE_BYTES",
         "aeadOpen",
         "aeadSeal",
+        "assertIdentityId",
+        "createShareArtifact",
         "decodeBlob",
         "deriveKey",
         "encodeBlob",
+        "generateSharingIdentity",
+        "identityId",
+        "openShareArtifact",
         "openWithPassphrase",
+        "publicIdentityFromWire",
+        "publicIdentityToWire",
+        "publicSharingIdentity",
         "randomBytes",
         "sealWithPassphrase",
         "unwrapKey",

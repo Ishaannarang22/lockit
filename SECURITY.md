@@ -1,6 +1,6 @@
 # Security Policy
 
-`kv` (the `key_manager` project) is a local-first developer secrets manager. Security
+`lockit` (the `key_manager` project) is a local-first developer secrets manager. Security
 is the product, so we take reports seriously and try to be honest about exactly what
 we do and do not protect. This document explains how to report a vulnerability, which
 versions we support, the high-level security model, and the limits we deliberately
@@ -51,7 +51,7 @@ will always communicate honestly about timelines.
 
 ## Supported Versions
 
-`kv` is pre-1.0 and under active development. Security fixes land on the latest
+`lockit` is pre-1.0 and under active development. Security fixes land on the latest
 release line; older pre-1.0 versions are not maintained.
 
 | Version | Supported |
@@ -64,7 +64,7 @@ will be updated to state the supported major lines.
 
 ## Security Model and Zero-Knowledge Guarantee
 
-`kv` is **local-first** and built around **client-side envelope encryption**. The two
+`lockit` is **local-first** and built around **client-side envelope encryption**. The two
 problems it exists to solve shape the model:
 
 1. Stop secrets from leaking into AI-agent context and transcripts, shell history,
@@ -100,7 +100,7 @@ agent cannot satisfy.
 
 All agent-facing output (`list`, `status`, `--dry-run`, the ambiguity chooser) emits
 only slugs, schemas, field names, tags, and `hasValue` booleans — **never a value, not
-even masked.** During `kv run`, values are decrypted in memory, injected into the child
+even masked.** During `lockit run`, values are decrypted in memory, injected into the child
 process's environment for its lifetime, masked in the child's stdout/stderr, and shredded
 on exit; nothing is written to disk. The model orchestrates; values flow from the vault
 to the child process and never enter the model's context or the transcript.
@@ -113,7 +113,7 @@ In scope for security reports:
   zero-knowledge primitives.
 - **`packages/core`** — the vault and encrypted at-rest store, and the project-world
   sandbox and human-gated admission gating.
-- **`packages/cli`** — the `kv` binary, including injection (`kv run`) and the
+- **`packages/cli`** — the `lockit` binary, including injection (`lockit run`) and the
   agent-safe output guarantees.
 - **`packages/server`** — the optional self-hosted sync/sharing relay, Key
   Transparency, and OPAQUE login.
@@ -121,14 +121,14 @@ In scope for security reports:
 
 Examples of issues we especially want to hear about:
 
-- Any path by which an AI agent obtains a secret **value** through normal `kv` output.
+- Any path by which an AI agent obtains a secret **value** through normal `lockit` output.
 - Any way to bypass the project-world sandbox or the human-gated admission flow.
 - Any way the optional server could read plaintext or unwrap key material.
 - Tampering with an encrypted artifact (for example the recipient set) that goes
   undetected.
 - Sender impersonation that injects a forged shared secret.
 - Duplicate or colliding env-var injection that is not caught at link time or
-  `kv run --dry-run`.
+  `lockit run --dry-run`.
 
 ## Honest Non-Goals and Limitations
 
@@ -203,4 +203,4 @@ In return, we will:
   in good faith.
 - Credit you in the advisory if you would like to be named.
 
-Thank you for helping keep `kv` and its users safe.
+Thank you for helping keep lockit and its users safe.

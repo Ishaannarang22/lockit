@@ -4,40 +4,40 @@
 
 **Goal:** Build `packages/core`'s data layer — the encrypted global store of Secrets (typed field-bags keyed by slug), the value-free project vault of Slots, the built-in schema registry, the strict 0/1/N resolver, the per-environment axis, and the gitignored local resolution cache — so secrets are set once and referenced everywhere without ever copying a value.
 
-**Depends on:** Plan #1 (`@kv/crypto` at-rest seal: `sealWithPassphrase` / `openWithPassphrase`, the versioned sealed-blob format). Asymmetric/sharing crypto (Plan #2/#7) is NOT required here. The project-world sandbox + human-gated admission (next plan) builds on top of this layer and is out of scope.
+**Depends on:** Plan #1 (`@lockit/crypto` at-rest seal: `sealWithPassphrase` / `openWithPassphrase`, the versioned sealed-blob format). Asymmetric/sharing crypto (Plan #2/#7) is NOT required here. The project-world sandbox + human-gated admission (next plan) builds on top of this layer and is out of scope.
 
-**Packages touched:** `packages/core` (new package, depends on `@kv/crypto`). No CLI, no plugin, no server.
+**Packages touched:** `packages/core` (new package, depends on `@lockit/crypto`). No CLI, no plugin, no server.
 
 ## Scope — what this subsystem builds
 
 - The **global store**: a collection of **Secrets** — typed field-bags `{ slug, schema, aka[], fields[], versions[], tags[], localId }`, where each field is `{ key, type: "env" | "file", hasValue }` plus a sealed value. Persisted **at rest** under a random **DEK** (itself kept wrapped under the passphrase-derived AK — see the DEK-indirection bullet below); opened in memory by unwrapping the DEK.
 - **Store keyed by slug, never by env-var name** — so `supabase/acme` and `supabase/blog` can both carry a `SUPABASE_URL` field with zero collision. This is the central invariant the whole layer exists to guarantee structurally.
-- The **project vault** (`./.kv/vault.json`): a committed, **value-free** list of **Slots** `{ schema, bind: "pinned" | "open", to: slug | { env: slug } | null, inject: { fieldKey -> ENV_VAR_NAME | ENV_VAR_NAME[] } }`. Read/write as plain JSON — it contains no secret material.
+- The **project vault** (`./.lockit/vault.json`): a committed, **value-free** list of **Slots** `{ schema, bind: "pinned" | "open", to: slug | { env: slug } | null, inject: { fieldKey -> ENV_VAR_NAME | ENV_VAR_NAME[] } }`. Read/write as plain JSON — it contains no secret material.
 - The **built-in schema registry** (field shapes for known providers, e.g. `openai`, `supabase`, `gcp-service-account`) plus acceptance of **free-string** schemas for unknown providers. Powers completeness checks and field-key/env-var autocomplete; never constrains or blocks storing a Secret.
 - The **strict 0/1/N resolver**: maps a slot to a concrete Secret for a selected environment. Exact slug wins for pinned; exactly one schema match resolves (and reports the chosen slug); zero is `MISSING` (pinned) or `OPEN_UNFILLED` (open); N>1 is a structured, **value-free** `AMBIGUOUS` error with a numbered chooser. **Never guesses, no label heuristics.**
 - **References, not copies**: slots hold a reference (slug or "any of schema X"), never a value. Single source of truth in the store.
 - The **per-environment axis**: an optional secondary axis; a slot's `to` may be a plain slug (same in all contexts) or an env→slug map. The resolver runs per selected environment.
 - The **unique-inject-name invariant**: within one vault, the union of all injected env-var names must be unique; a duplicate is a **hard error** at link time (and re-checked at dry-run by a later plan).
-- The **local resolution cache** (`./.kv/local.json`, **gitignored**): records how each **open** slot was filled on this machine — **slugs only, never values**. Deleting it simply re-resolves next run.
-- **DEK indirection for the unlock model** (see [ADR-0009](../../adr/0009-local-unlock-model.md) and the [unlock-model spec](../specs/2026-06-17-local-unlock-model-design.md)): the store payload is sealed under a **random DEK**, and the DEK is persisted **wrapped under the passphrase-derived AK** via `@kv/crypto.wrapKey` / `unwrapKey` — not sealed directly under the passphrase. This indirection is what lets P4 cache the DEK in a Touch-ID-gated keychain (passphrase once, then fingerprint) and re-key the unlock path without re-encrypting the store.
+- The **local resolution cache** (`./.lockit/local.json`, **gitignored**): records how each **open** slot was filled on this machine — **slugs only, never values**. Deleting it simply re-resolves next run.
+- **DEK indirection for the unlock model** (see [ADR-0009](../../adr/0009-local-unlock-model.md) and the [unlock-model spec](../specs/2026-06-17-local-unlock-model-design.md)): the store payload is sealed under a **random DEK**, and the DEK is persisted **wrapped under the passphrase-derived AK** via `@lockit/crypto.wrapKey` / `unwrapKey` — not sealed directly under the passphrase. This indirection is what lets P4 cache the DEK in a Touch-ID-gated keychain (passphrase once, then fingerprint) and re-key the unlock path without re-encrypting the store.
 
 ## Files / modules to create or modify — concrete paths + one-line responsibility
 
-- `packages/core/package.json` — new `@kv/core` workspace package depending on `@kv/crypto`.
+- `packages/core/package.json` — new `@lockit/core` workspace package depending on `@lockit/crypto`.
 - `packages/core/tsconfig.json` — extends `tsconfig.base.json`; `outDir dist`, `rootDir src`.
 - `packages/core/src/index.ts` — public API barrel for the core data layer.
 - `packages/core/src/model/secret.ts` — `Secret`, `Field`, `Version` types + constructors/validators (slug/schema/field-key shape).
 - `packages/core/src/model/slot.ts` — `Slot`, `Bind`, `InjectMap`, env-map `to` types + slot validation.
 - `packages/core/src/store/store.ts` — in-memory `GlobalStore`: add/get/list/remove/rename(aka)/rotate/tag, slug-keyed indexing, slug+aka lookup.
 - `packages/core/src/store/store-codec.ts` — serialize/deserialize the store's plaintext JSON (the bytes that get sealed); version field for forward-compat.
-- `packages/core/src/store/store-persist.ts` — `saveStore`/`loadStore`: seal the codec bytes under a random **DEK** and persist the DEK **wrapped under the passphrase-derived AK** (`@kv/crypto.wrapKey`/`unwrapKey`); the only at-rest path. (Opening by passphrase re-derives AK → unwraps DEK → decrypts; opening by a cached DEK skips the passphrase — see P4.)
-- `packages/core/src/vault/vault.ts` — read/write `./.kv/vault.json`; add/remove/list slots; enforce unique-inject-name on mutation.
+- `packages/core/src/store/store-persist.ts` — `saveStore`/`loadStore`: seal the codec bytes under a random **DEK** and persist the DEK **wrapped under the passphrase-derived AK** (`@lockit/crypto.wrapKey`/`unwrapKey`); the only at-rest path. (Opening by passphrase re-derives AK → unwraps DEK → decrypts; opening by a cached DEK skips the passphrase — see P4.)
+- `packages/core/src/vault/vault.ts` — read/write `./.lockit/vault.json`; add/remove/list slots; enforce unique-inject-name on mutation.
 - `packages/core/src/vault/inject.ts` — normalize an `inject` map to a flat env-var-name set; the unique-inject-name checker (returns structured duplicate error).
 - `packages/core/src/schema/registry.ts` — built-in schema registry (provider → expected field shapes), `lookupSchema`, free-string fallback, completeness check.
 - `packages/core/src/resolve/resolver.ts` — the strict 0/1/N resolver; per-environment selection; returns a discriminated `Resolution` result.
 - `packages/core/src/resolve/errors.ts` — structured resolver outcomes/errors (`Missing`, `OpenUnfilled`, `Ambiguous` with value-free candidate list).
-- `packages/core/src/cache/local-cache.ts` — read/write `./.kv/local.json`; record/lookup open-slot fills (slugs only), per environment.
-- `packages/core/src/paths.ts` — resolve `./.kv/` paths for vault and local cache; helper to ensure `local.json` is gitignored.
+- `packages/core/src/cache/local-cache.ts` — read/write `./.lockit/local.json`; record/lookup open-slot fills (slugs only), per environment.
+- `packages/core/src/paths.ts` — resolve `./.lockit/` paths for vault and local cache; helper to ensure `local.json` is gitignored.
 - Colocated `*.test.ts` next to each source module (TDD).
 
 ## Key components & responsibilities
@@ -69,7 +69,7 @@ interface Secret {
 
 **Global store.** Slug-keyed map with lookup that also consults `aka` (so renamed slugs keep resolving). `rename` moves the old slug into `aka`; `rotate` appends a new current `Version`. Listing output is strictly value-free.
 
-**At-rest persistence.** `store-codec` turns the store (including sealed field values) into deterministic JSON bytes; `store-persist` seals those bytes under a random **DEK** (`@kv/crypto` AEAD) and stores the DEK **wrapped under the passphrase-derived AK** (`wrapKey`/`unwrapKey`). Loading re-derives AK from the passphrase (or reads a cached DEK — see P4), unwraps the DEK, and decrypts. Core never reimplements crypto — it only calls `@kv/crypto` primitives.
+**At-rest persistence.** `store-codec` turns the store (including sealed field values) into deterministic JSON bytes; `store-persist` seals those bytes under a random **DEK** (`@lockit/crypto` AEAD) and stores the DEK **wrapped under the passphrase-derived AK** (`wrapKey`/`unwrapKey`). Loading re-derives AK from the passphrase (or reads a cached DEK — see P4), unwraps the DEK, and decrypts. Core never reimplements crypto — it only calls `@lockit/crypto` primitives.
 
 **Vault + inject.** The vault is plain committed JSON. `inject.ts` flattens `{ fieldKey -> name | name[] }` to a set of env-var names; on any slot add/update the union across all slots must stay unique, else a structured `DuplicateInjectName` hard error naming the colliding env var.
 
@@ -115,9 +115,9 @@ Pinned: pick `to` (per-env if `to` is a map) via slug+aka exact match → `resol
 ## Out of scope / deferred
 
 - The project-world sandbox, human-gated admission, and local presence auth (next plan).
-- `kv run` injection, env materialization, tmpfs file writing, output masking, `--dry-run` (CLI plan) — this plan only stores the env/file distinction, it does not materialize anything.
+- `lockit run` injection, env materialization, tmpfs file writing, output masking, `--dry-run` (CLI plan) — this plan only stores the env/file distinction, it does not materialize anything.
 - All CLI commands and their output formatting; the Claude plugin.
-- Asymmetric/envelope/HPKE crypto, signatures, sharing, and bundling (`kv share` / `kv bundle`) — later plans.
+- Asymmetric/envelope/HPKE crypto, signatures, sharing, and bundling (`lockit share` / `lockit bundle`) — later plans.
 - Production Argon2id parameter tuning (flagged in Plan #1).
 - The optional self-hosted server and any sync.
 

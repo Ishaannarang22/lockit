@@ -4,7 +4,7 @@
 
 **Goal:** Build the client-side identity layer (per-device keypairs + Ed25519 device sigchain, the User Identity Seed/UIK and personal/team seeds) and the end-to-end sharing path (a portable, operator-blind share artifact and its create-new-never-auto-merge accept) so that two distinct identities can share a secret over *any* channel — all before, and independent of, any server.
 
-**Depends on:** Plan #2 (`@kv/crypto` asymmetric envelope — X25519/HPKE wrap, Ed25519 signatures, the seed-triple expansion) and Plan #3 (`@kv/core` encrypted store + Sets/Slots vault model, reference resolution).
+**Depends on:** Plan #2 (`@lockit/crypto` asymmetric envelope — X25519/HPKE wrap, Ed25519 signatures, the seed-triple expansion) and Plan #3 (`@lockit/core` encrypted store + Sets/Slots vault model, reference resolution).
 
 **Packages touched:** `packages/crypto` (identity/sigchain/share-artifact/KT primitives, pure + I/O-free) and `packages/core` (binds those primitives to the store: reference resolution for share, slug-clash suffixing on accept, the local TOFU pin record and device-state persistence). No `packages/server` work — sharing here must function purely client-to-client (e.g. a copy-pasted artifact, a file, any out-of-band channel).
 
@@ -16,7 +16,7 @@
 - **The Ed25519 device sigchain.** An append-only, self-signed-then-chained log of device-add (and device-revoke) entries. Each entry names a device public key and is signed by an already-trusted key, rooted at the genesis device. Verification re-walks the chain and rejects any break, fork, out-of-order, or unsigned entry.
 - **Second-device enrollment via a short authenticated code.** A new device generates its own `DK` locally. An existing trusted device and the new device derive a short human-comparable code from a fresh ephemeral exchange; the human compares the codes out of band; on match, the trusted device signs the new device into the sigchain and wraps `UIS` (the seed, conveying `UIK`) to the new device's public key. The new device then derives `UIK` locally. The private `DK` never traverses any channel.
 - **Personal / team seeds in the ladder.** `PVS` is generated and hard-excluded from any wrap-to-another-person path. Team seeds are HPKE-sealed to a member's `UIK` public key (team-join), establishing the team sharing boundary. (Team-join *mechanics* may be thin here; the structural exclusion of `PVS` from sharing is in scope and tested.)
-- **Creating a share artifact.** Given a reference to a secret, resolve it to the concrete value/DEK (via `@kv/core`), wrap the DEK to the recipient's `UIK` public key, Ed25519-sign the envelope over the recipient stanza set, and emit a single portable, self-describing ciphertext artifact (base64/JSON) that carries no plaintext and no private material.
+- **Creating a share artifact.** Given a reference to a secret, resolve it to the concrete value/DEK (via `@lockit/core`), wrap the DEK to the recipient's `UIK` public key, Ed25519-sign the envelope over the recipient stanza set, and emit a single portable, self-describing ciphertext artifact (base64/JSON) that carries no plaintext and no private material.
 - **Accepting a share artifact.** Verify the sender signature and the envelope integrity, resolve and pin the sender's key (TOFU), unwrap the DEK with the recipient's `UIK`, and **CREATE a new slot — never auto-merge**: on slug clash, deterministically suffix to a fresh slug. The accept is a point-in-time copy.
 - **A Key Transparency client with TOFU pinning.** A local store of `email → UIK` pins. First contact pins; a later differing key for a pinned contact raises a structured alert (it never silently re-pins). Inclusion/consistency-proof verification against an append-only log is stubbed against the proof interface so the server plan can supply a real log later.
 
@@ -40,7 +40,7 @@
 - `packages/core/src/identity/device-state.ts` — persist/load this device's key material (wrapped at rest) and the local sigchain view.
 - `packages/core/src/identity/kt-pins.ts` — persist/load the local TOFU pin set; surface the "contact key changed" alert to callers.
 
-(Exact paths align to the repo's `@kv/core` layout at expansion time; if Plan #3 chose a different folder shape, mirror it.)
+(Exact paths align to the repo's `@lockit/core` layout at expansion time; if Plan #3 chose a different folder shape, mirror it.)
 
 ---
 
@@ -101,7 +101,7 @@ function openShareArtifact(artifact: string, recipient: Identity): { value: Uint
 - **The server / relay, OPAQUE login, and a real append-only KT log with gossip witnesses** — Plan #8. Here the KT client verifies *supplied* proofs and pins locally; nothing is fetched over a network.
 - **Team-join at scale and team-seed rotation / revocation flows** — the structural team boundary (`PVS` exclusion, seal-to-`UIK`) is exercised, but `O(survivors)` revocation, lazy re-wrap, and upstream-value rotation are deferred to a later sharing/rotation pass.
 - **Account recovery** — not in v1; lost passphrase + lost devices is unrecoverable by design.
-- **CLI surface for `kv share` / `kv accept` / `kv device enroll`** — Plan #5 wires commands onto these primitives.
+- **CLI surface for `lockit share` / `lockit accept` / `lockit device enroll`** — Plan #5 wires commands onto these primitives.
 - **Native-crypto hotpath optimization** (`sodium-native`) — a later hardening pass.
 
 ## Open questions

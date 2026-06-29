@@ -2,7 +2,7 @@
 
 > Status: INTENDED — scope-level. Expand into bite-sized failing-test-first TDD steps just-in-time, aligned with the repo state at that time. Plan #1 (docs/superpowers/plans/2026-06-17-p0-scaffold-and-crypto-foundations.md) is the worked example of the target granularity.
 
-**Goal:** Build the asymmetric sharing trust root in `@kv/crypto` — keypair generation, the seed-triple expansion, HPKE wrap/unwrap of a per-item DEK to recipient public keys, Ed25519 sign/verify, and the age-style multi-recipient envelope — so a DEK can be sealed to any set of public keys with sender authentication and recipient-set tamper detection.
+**Goal:** Build the asymmetric sharing trust root in `@lockit/crypto` — keypair generation, the seed-triple expansion, HPKE wrap/unwrap of a per-item DEK to recipient public keys, Ed25519 sign/verify, and the age-style multi-recipient envelope — so a DEK can be sealed to any set of public keys with sender authentication and recipient-set tamper detection.
 
 **Depends on:** Plan #1 (P0 scaffold + crypto at-rest foundation) — specifically the `aead` (XChaCha20-Poly1305 `aeadSeal`/`aeadOpen`, `randomBytes`) and `kdf`/HKDF primitives, plus the versioned blob/CBOR encoding conventions established there.
 

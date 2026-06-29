@@ -1,24 +1,24 @@
-# kv — Consolidated Design Spec
+# lockit — Consolidated Design Spec
 
 > Status: Canonical design record (committed brainstorming output)
 > Date: 2026-06-17
-> Project: `key_manager` (open source) · CLI command: `kv` · License: Apache-2.0
+> Project: `key_manager` (open source) · CLI command: `lockit` · License: Apache-2.0
 > Stack: TypeScript / Node, pnpm monorepo
 
 This document is the single reference other sessions, contributors, and agents
-read to understand what `kv` is, why it is shaped the way it is, and how the
+read to understand what `lockit` is, why it is shaped the way it is, and how the
 pieces fit together. It captures the **entire public design** as a coherent
 narrative. The step-by-step implementation plan is produced separately, after
 this documentation set.
 
-> Note on the name: `kv` is a working placeholder and may be renamed. The CLI
-> binary and product are referred to as `kv` throughout for consistency.
+> Note on the name: `lockit` is a working placeholder and may be renamed. The CLI
+> binary and product are referred to as `lockit` throughout for consistency.
 
 ---
 
 ## 1. Vision and the problem
 
-`kv` is an open-source, **local-first, AI-agent-safe developer secrets
+`lockit` is an open-source, **local-first, AI-agent-safe developer secrets
 manager**. It targets two concrete, everyday pains:
 
 1. **Copy-paste sprawl.** Developers waste enormous time hunting for and
@@ -41,7 +41,7 @@ The core ideas that drive the whole design:
 - **Share secrets encrypted** to your other devices and to teammates, end to
   end, over any channel.
 
-`kv` needs no account and no third-party service to be useful locally. An
+`lockit` needs no account and no third-party service to be useful locally. An
 optional self-hosted server adds end-to-end sync and sharing for a team.
 
 ---
@@ -66,7 +66,7 @@ recovery is future work beyond v1 (see [§12 Phasing](#12-phasing-p0p4)).
 These are the decisions that shape the surface area of v1.
 
 - **The CLI is the universal interface** for both humans and agents. Anything an
-  agent can do, it does through the same `kv` commands a human would run.
+  agent can do, it does through the same `lockit` commands a human would run.
 - **References, not copies.** A project declares which secrets it needs; it does
   not embed their values. There is a single source of truth — rotate once and
   all consumers see the new value.
@@ -86,7 +86,7 @@ These are the decisions that shape the surface area of v1.
 
 ## 4. Data model: "Sets + Slots"
 
-The data model is the heart of `kv`. It cleanly separates **what secrets exist**
+The data model is the heart of `lockit`. It cleanly separates **what secrets exist**
 (the global store, which holds values) from **what a project requires** (the
 project vault, which holds no values).
 
@@ -122,7 +122,7 @@ provider is not in the registry.
 
 ### 4.3 The project vault holds SLOTS (and no values)
 
-The **project vault** (committed, e.g. `./.kv/vault.json`) is **value-free**. It
+The **project vault** (committed, e.g. `./.lockit/vault.json`) is **value-free**. It
 is a list of **slots** — requirements the project declares. A slot looks like:
 
 ```jsonc
@@ -186,11 +186,11 @@ and `VITE_SUPABASE_URL` all pointing at the same field.
 
 **Invariant:** the union of injected env-var names within a single vault must be
 **unique**. A duplicate is a **hard error** at link time and at
-`kv run --dry-run`.
+`lockit run --dry-run`.
 
 ### 4.8 Local resolution cache
 
-A **local resolution cache** (gitignored, e.g. `./.kv/local.json`) records how
+A **local resolution cache** (gitignored, e.g. `./.lockit/local.json`) records how
 **open** slots were filled on **this machine**. It is per-machine state and is
 never committed.
 
@@ -198,7 +198,7 @@ never committed.
 
 ## 5. The project-world sandbox and human-gated admission
 
-This is the core security UX of `kv`.
+This is the core security UX of `lockit`.
 
 ### 5.1 The sandbox
 
@@ -222,7 +222,7 @@ keychain or a password; a demo can use a passphrase prompt.
 ### 5.3 Auth happens once, with batching
 
 - **Auth happens once, at admission.** There is **no re-auth on later
-  `kv run`.**
+  `lockit run`.**
 - **Batch admission:** admitting several keys at once shows **all** of them in a
   single confirmation box, and **one** auth admits the whole batch.
 - **Optional re-auth-per-use** is a policy dial (for example for service-role or
@@ -238,15 +238,15 @@ keychain or a password; a demo can use a passphrase prompt.
 
 ### 5.5 Lazy, no daemon
 
-Resolution triggers **lazily** at `kv run` / `kv status` — **never on
+Resolution triggers **lazily** at `lockit run` / `lockit status` — **never on
 `git clone`**. There is **no daemon and no filesystem watcher**. (An optional,
 opt-in direnv-style `cd` hook may come later.)
 
 ---
 
-## 6. Injection — `kv run`
+## 6. Injection — `lockit run`
 
-`kv run` is the execution primitive. It:
+`lockit run` is the execution primitive. It:
 
 - decrypts the needed secrets **in memory only**;
 - spawns the child process with the env vars set **for the lifetime of that
@@ -258,7 +258,7 @@ opt-in direnv-style `cd` hook may come later.)
 For **file-type** secrets, it materializes a temp file, sets the path env var,
 and shreds the file on exit.
 
-`kv run --dry-run` is the **agent-safe verification primitive**. It prints the
+`lockit run --dry-run` is the **agent-safe verification primitive**. It prints the
 env-var **names** that will be set (values masked) and flags:
 
 - duplicate inject names,
@@ -414,9 +414,9 @@ witnesses follow.**
 | --- | --- |
 | **`packages/crypto`** | The cryptographic **trust root** — envelope encryption, key hierarchy, HPKE, signatures, zero-knowledge primitives. Tiny, pure, **no I/O**, independently auditable. Includes a generic **wrap-a-seed-to-any-public-key** primitive that future features can build on. |
 | **`packages/core`** | The application logic: **vault** (the Sets+Slots data model, the project-world sandbox), **store** (encrypted at-rest persistence — the global store plus per-project vaults), and **auth/admission gating** (local presence auth). |
-| **`packages/cli`** | The **`kv` binary** — the universal human **and** agent interface. |
+| **`packages/cli`** | The **`lockit` binary** — the universal human **and** agent interface. |
 | **`packages/server`** | An optional **self-hosted end-to-end sync/sharing server** for a team — members, devices, sharing, a shared team vault, Key Transparency, and OPAQUE login. A **relay that only ever holds ciphertext**. |
-| **`plugin/`** | The **Claude Code plugin** — skill(s) + hooks. Teaches agent-safe `kv` usage; hooks add guardrails (for example, warn if a raw secret is about to be written into a file or command). Depends on the `kv` CLI. |
+| **`plugin/`** | The **Claude Code plugin** — skill(s) + hooks. Teaches agent-safe `lockit` usage; hooks add guardrails (for example, warn if a raw secret is about to be written into a file or command). Depends on the `lockit` CLI. |
 | **`docs/`** | Documentation (this spec lives here). |
 
 Dependency direction flows inward toward `crypto`: `cli` and `server` depend on
@@ -473,7 +473,7 @@ documentation set.
 2. A project commits a value-free vault declaring a **slot** for what it needs.
 3. On first use, the agent or developer **requests admission**; a **human
    confirms** and passes **local auth** once. Batches admit in one step.
-4. `kv run` **resolves** strictly (0/1/N, never guessing), decrypts **in
+4. `lockit run` **resolves** strictly (0/1/N, never guessing), decrypts **in
    memory**, injects env vars (and materializes file-type secrets), **masks**
    output, and **shreds on exit**.
 5. To collaborate, a secret is **shared end-to-end** — wrapped to a teammate's
@@ -493,7 +493,7 @@ All phases are committed in the PRD. This is the build order.
 
 - **P0** — Monorepo scaffold + this documentation set + governance files.
 - **P1** — `crypto` + `core` + `cli`: the local global store, Sets+Slots, the
-  project-world sandbox, human-gated admission with local auth, `kv run`
+  project-world sandbox, human-gated admission with local auth, `lockit run`
   injection (env and file types), and per-environment. **The daily driver, no
   server needed.**
 - **P2** — The **Claude plugin** (skill + hooks): agent-safe reuse and the

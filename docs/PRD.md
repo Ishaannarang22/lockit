@@ -1,11 +1,11 @@
-# Product Requirements Document — `kv`
+# Product Requirements Document — `lockit`
 
 > Status: Draft (P0)
 > Last updated: 2026-06-17
 > License: Apache-2.0
-> Working product name: **kv** (placeholder, renameable). CLI command: `kv`.
+> Working product name: **lockit** (placeholder, renameable). CLI command: `lockit`.
 
-This is the master Product Requirements Document for **kv**, an open-source, local-first, AI-agent-safe developer secrets manager.
+This is the master Product Requirements Document for **lockit**, an open-source, local-first, AI-agent-safe developer secrets manager.
 
 For the deeper security material this document references:
 
@@ -16,7 +16,7 @@ For the deeper security material this document references:
 
 ## 1. Overview / Vision
 
-`kv` is an open-source, local-first developer secrets manager that you can run entirely on your own machine, with an **optional** self-hosted server for syncing and sharing within a team. It needs no account and no third-party service to use locally.
+`lockit` is an open-source, local-first developer secrets manager that you can run entirely on your own machine, with an **optional** self-hosted server for syncing and sharing within a team. It needs no account and no third-party service to use locally.
 
 The vision rests on three core ideas:
 
@@ -24,7 +24,7 @@ The vision rests on three core ideas:
 2. **AI agents can _use_ secrets without ever _seeing_ them.** Values flow from the vault into a child process in memory; they never enter an agent's context or transcript.
 3. **Share encrypted to your other devices and teammates.** End-to-end encryption means the relay only ever holds ciphertext.
 
-`kv` is the universal interface for both humans and agents: one CLI binary that a person types into and that any shell-capable agent can drive.
+`lockit` is the universal interface for both humans and agents: one CLI binary that a person types into and that any shell-capable agent can drive.
 
 ---
 
@@ -37,7 +37,7 @@ Developers lose enormous time on two distinct pains:
 1. **Hunting and copy-pasting API keys** across projects and throwaway prototypes. The same OpenAI or Supabase key gets re-pasted into dozens of `.env` files, each a slightly stale copy of the last.
 2. **Secrets leaking** into AI-agent context and transcripts, shell history, `.env` files, and casual channels (chat, tickets, screenshots). Once a value has been seen, it cannot be un-seen.
 
-The structural root cause for reuse is that `.env`-style storage is keyed by **environment-variable name**, so two projects that both want a `SUPABASE_URL` collide. `kv` keys storage by a portable **slug** instead, which removes the collision by construction.
+The structural root cause for reuse is that `.env`-style storage is keyed by **environment-variable name**, so two projects that both want a `SUPABASE_URL` collide. `lockit` keys storage by a portable **slug** instead, which removes the collision by construction.
 
 ### 2.2 Target users
 
@@ -65,8 +65,8 @@ The structural root cause for reuse is that `.env`-style storage is keyed by **e
 - **No account recovery in this version.** If you lose your passphrase **and** all your devices, your data cannot be recovered. This is an intentional, documented limitation of true zero-knowledge encryption. See the recovery trilemma in [`security-crypto.md`](./security-crypto.md): you cannot simultaneously have no-backdoor, loss-proof, and zero-extra-trust.
 - **No forward secrecy at rest.** A leaked long-term key is retroactive over the data it can reach. This is inherent to durable, random-access storage and is why messaging-style ratchets were rejected.
 - **Metadata is visible to a server operator.** Names, sizes, and the who-shares-with-whom graph are visible to whoever runs the self-hosted server, even though values never are.
-- **Containment is not omnipotence.** A child process using a secret necessarily holds the real value, so a rogue or confused agent could still exfiltrate it through a command it runs. `kv` minimizes and gates exposure; it does not claim to make exfiltration impossible.
-- **No guaranteed memory zeroing.** Node cannot guarantee wiping secrets from memory because of garbage collection; `kv` minimizes plaintext lifetime but cannot promise a wipe.
+- **Containment is not omnipotence.** A child process using a secret necessarily holds the real value, so a rogue or confused agent could still exfiltrate it through a command it runs. `lockit` minimizes and gates exposure; it does not claim to make exfiltration impossible.
+- **No guaranteed memory zeroing.** Node cannot guarantee wiping secrets from memory because of garbage collection; `lockit` minimizes plaintext lifetime but cannot promise a wipe.
 - **MCP is dropped from v1.** Security lives in the CLI, which is universal; a skill is Claude Code sugar over the CLI. MCP may return later only as an optional thin adapter over `core` to reach hosts that cannot run a shell.
 
 ---
@@ -78,12 +78,12 @@ The structural root cause for reuse is that `.env`-style storage is keyed by **e
 - **Dana, the solo developer.** Runs ten projects locally. Wants `openai/dev` available in every one without re-pasting and without leaking it into shell history.
 - **Priya, the prototyper.** Spins up a new app daily. Wants to declare "I need a Supabase backend" and have her local key fill the slot automatically.
 - **The small team (Sam + Riya).** Want to share a genuinely shared piece of infrastructure end-to-end, over a channel they control, with no plaintext ever leaving a device.
-- **Claude (the agent).** Drives `kv` on the user's behalf. Must be able to request and use secrets, but must never be able to read a value or bypass the human gate.
+- **Claude (the agent).** Drives `lockit` on the user's behalf. Must be able to request and use secrets, but must never be able to read a value or bypass the human gate.
 
 ### 4.2 Top user stories
 
 - As a developer, I store `openai/dev` once and reference it from every project, so rotating it once updates all consumers.
-- As a developer, I run `kv run -- <cmd>` and my program gets its env vars set for its lifetime, with nothing written to disk.
+- As a developer, I run `lockit run -- <cmd>` and my program gets its env vars set for its lifetime, with nothing written to disk.
 - As a developer using an agent, I am shown a single confirmation box listing exactly which keys the agent is requesting, and I approve them with one local-auth prompt.
 - As a developer, I declare a project's requirements as value-free slots committed to git, so a teammate who clones the repo sees what is needed but no values.
 - As a prototyper, I declare an `open` Supabase slot and have my single matching local secret auto-resolved and named back to me.
@@ -93,13 +93,13 @@ The structural root cause for reuse is that `.env`-style storage is keyed by **e
 
 ## 5. Scope
 
-`kv` is a local-first CLI (`packages/cli`) built on a pure cryptographic core (`packages/crypto`) and application logic (`packages/core`), with an optional self-hosted team server (`packages/server`) and a Claude Code plugin (`plugin/`).
+`lockit` is a local-first CLI (`packages/cli`) built on a pure cryptographic core (`packages/crypto`) and application logic (`packages/core`), with an optional self-hosted team server (`packages/server`) and a Claude Code plugin (`plugin/`).
 
 **In scope for v1:**
 
 - The local global store and the Sets + Slots data model.
 - The project-world sandbox and human-gated admission with local auth.
-- `kv run` injection for both env-type and file-type secrets.
+- `lockit run` injection for both env-type and file-type secrets.
 - Per-environment (dev/staging/prod) selection.
 - Agent-safe output and verification (`--dry-run`).
 - End-to-end identity, sharing artifacts, and the optional self-hosted team server (Key Transparency, OPAQUE login).
@@ -128,7 +128,7 @@ Requirements:
 
 #### Project vaults (value-free slots)
 
-The **project vault** (committed, e.g. `./.kv/vault.json`) is **value-free**: a list of **slots** (requirements). A slot is:
+The **project vault** (committed, e.g. `./.lockit/vault.json`) is **value-free**: a list of **slots** (requirements). A slot is:
 
 ```
 { schema, bind: pinned | open, to: slug-or-null, inject: { fieldKey -> EXACT_ENV_VAR_NAME } }
@@ -139,7 +139,7 @@ The **project vault** (committed, e.g. `./.kv/vault.json`) is **value-free**: a 
 - Slots are **references, not copies**: a single source of truth, so you rotate once and all consumers update.
 - **Opt-in bundling** is available for standalone or offline projects.
 
-A **local resolution cache** (gitignored, e.g. `./.kv/local.json`) records how `open` slots are filled on **this** machine.
+A **local resolution cache** (gitignored, e.g. `./.lockit/local.json`) records how `open` slots are filled on **this** machine.
 
 #### The resolver (strict 0 / 1 / N, never guesses)
 
@@ -161,14 +161,14 @@ The `inject` map lets any field map to any env-var name, and multiple names can 
 A project can only use keys that have been **admitted** to its **project world**. The global store is the protected source; the project world is a sandbox. The agent can **never** pull from the global store directly — it can only **request** admission.
 
 - Every admission requires **human confirmation plus local auth** (Touch ID / OS password / biometric) — proof of human presence that the agent cannot satisfy. On macOS this uses LocalAuthentication / Touch ID; the fallback is the OS keychain or password; the demo can use a passphrase prompt.
-- **Auth happens once, at admission.** There is **no re-auth** on later `kv run`. Re-auth-per-use is an optional policy dial (e.g. for service-role or prod keys), not the default.
+- **Auth happens once, at admission.** There is **no re-auth** on later `lockit run`. Re-auth-per-use is an optional policy dial (e.g. for service-role or prod keys), not the default.
 - **Batch admission:** admitting several keys at once shows **all** of them in one confirmation box, and a single auth admits the whole batch.
 - After admission, keys **auto-resolve on use**. When an `open` slot has exactly one matching secret, it is auto-resolved **and the chosen secret is printed** ("auto-fill but tell me"). The first admission still passes the confirm-and-auth gate.
-- Resolution triggers **lazily** at `kv run` / `kv status` — never on `git clone`. There is **no daemon** and **no filesystem watcher** (an optional opt-in direnv-style `cd` hook may come later).
+- Resolution triggers **lazily** at `lockit run` / `lockit status` — never on `git clone`. There is **no daemon** and **no filesystem watcher** (an optional opt-in direnv-style `cd` hook may come later).
 
-### 6.3 `kv run` injection (file-based and per-environment)
+### 6.3 `lockit run` injection (file-based and per-environment)
 
-`kv run`:
+`lockit run`:
 
 - decrypts the needed secrets **in memory only**,
 - spawns the child process with env vars set **for its lifetime**,
@@ -180,7 +180,7 @@ A project can only use keys that have been **admitted** to its **project world**
 
 **Per-environment:** an optional secondary environment axis (dev / staging / prod). The default is single-context; opt in when needed.
 
-**`kv run --dry-run`** prints the env-var **names** that will be set (values masked) and flags duplicate inject names, unfilled `open` slots, and ambiguous resolution. This is the agent-safe verification primitive.
+**`lockit run --dry-run`** prints the env-var **names** that will be set (values masked) and flags duplicate inject names, unfilled `open` slots, and ambiguous resolution. This is the agent-safe verification primitive.
 
 ### 6.4 Agent-safety
 
@@ -192,13 +192,13 @@ A project can only use keys that have been **admitted** to its **project world**
 
 - A child process inevitably holds the real value (it is using it), so a rogue or confused agent could still exfiltrate it via a command it runs. Containment is not omnipotence.
 - Mitigations: human-gated admission (the biggest), an audit log, and egress warnings via a plugin hook.
-- Node cannot guarantee zeroing secrets from memory because of garbage collection; `kv` minimizes plaintext lifetime but cannot promise a wipe.
+- Node cannot guarantee zeroing secrets from memory because of garbage collection; `lockit` minimizes plaintext lifetime but cannot promise a wipe.
 
 See [`threat-model.md`](./threat-model.md) for the full treatment.
 
 #### The Claude Code plugin
 
-`plugin/` is the Claude Code plugin: skill(s) plus hooks. It teaches agent-safe `kv` usage and adds guardrails — for example, a hook that warns if a raw secret is about to be written into a file or command. It depends on the `kv` CLI.
+`plugin/` is the Claude Code plugin: skill(s) plus hooks. It teaches agent-safe `lockit` usage and adds guardrails — for example, a hook that warns if a raw secret is about to be written into a file or command. It depends on the `lockit` CLI.
 
 ### 6.5 Sharing (end-to-end)
 
@@ -235,7 +235,7 @@ For the full attacker model and mitigations, see [`threat-model.md`](./threat-mo
 ## 8. Success Criteria
 
 - A developer can store a secret once and reference it from multiple projects with zero copy-paste, and rotating once updates all consumers.
-- `kv run` injects the correct values into a child process, masks them in output, writes nothing to disk, and shreds on exit — verified by tests for injection isolation and output masking.
+- `lockit run` injects the correct values into a child process, masks them in output, writes nothing to disk, and shreds on exit — verified by tests for injection isolation and output masking.
 - The resolver is provably strict 0/1/N: it never silently picks a wrong value, and ambiguity is always a hard structured error.
 - An agent can drive the full flow (request, dry-run, run) without any value entering its context or transcript — verified by the "agent-never-sees-a-value" property test.
 - Admission cannot be completed without human confirmation and local auth — verified by the "sandbox-cannot-be-bypassed" property test.
@@ -249,7 +249,7 @@ For the full attacker model and mitigations, see [`threat-model.md`](./threat-mo
 All phases below are committed in this PRD; they define build order.
 
 - **P0** — Monorepo scaffold, this documentation set, and governance files.
-- **P1** — `crypto` + `core` + `cli`: the local global store, Sets + Slots, the project-world sandbox, human-gated admission with local auth, `kv run` injection (env and file types), and per-environment. The daily driver, no server needed.
+- **P1** — `crypto` + `core` + `cli`: the local global store, Sets + Slots, the project-world sandbox, human-gated admission with local auth, `lockit run` injection (env and file types), and per-environment. The daily driver, no server needed.
 - **P2** — The Claude plugin (skill + hooks): agent-safe reuse and the admission flow.
 - **P3** — Identity and end-to-end sharing crypto: device enrollment and shareable encrypted artifacts that work over any channel.
 - **P4** — The optional self-hosted team server: sync/sharing relay, members and devices, the team vault, Key Transparency, and OPAQUE login.
@@ -264,7 +264,7 @@ The detailed step-by-step implementation plan is produced separately, after this
 
 ### Open questions
 
-- **Rename of the working name `kv`.** The product name is a placeholder; the final name and any binary-name collisions need resolving before a public release.
+- **Rename of the working name `lockit`.** The product name is a placeholder; the final name and any binary-name collisions need resolving before a public release.
 - **Per-use re-auth policy surface.** How granular should the optional re-auth-per-use dial be (per-schema, per-slug, per-tag), and what is the default policy template for sensitive keys such as service-role and prod?
 - **direnv-style `cd` hook.** Whether and how to ship the optional opt-in directory hook later without reintroducing a daemon or watcher.
 - **Gossip witnesses for Key Transparency.** The deployment story for independent witnesses in a self-hosted setting.

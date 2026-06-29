@@ -21,13 +21,13 @@ Scope to one package with `pnpm --filter <pkg> <cmd>`. CI runs typecheck, lint, 
 
 ## Locked decisions (summary)
 
-- **Product:** `kv`, an open-source, local-first, AI-agent-safe developer secrets manager. CLI plus an optional self-hosted team sync/sharing server. No account or third-party service needed locally. Apache-2.0, TypeScript/Node, pnpm monorepo.
-- **Packages:** `crypto` (pure, no-I/O trust root) → `core` (vault + store + admission) → `cli` (`kv` binary); `server` (ciphertext-only relay) and `plugin/` (Claude Code skill + hooks) at the edges. Dependencies flow upward; never invert.
+- **Product:** `lockit`, an open-source, local-first, AI-agent-safe developer secrets manager. CLI plus an optional self-hosted team sync/sharing server. No account or third-party service needed locally. Apache-2.0, TypeScript/Node, pnpm monorepo.
+- **Packages:** `crypto` (pure, no-I/O trust root) → `core` (vault + store + admission) → `cli` (`lockit` binary); `server` (ciphertext-only relay) and `plugin/` (Claude Code skill + hooks) at the edges. Dependencies flow upward; never invert.
 - **MCP:** dropped from v1. Security lives in the CLI; the CLI is universal. Add MCP only to reach non-shell hosts, and only as a thin optional adapter over `core`.
 - **Data model — Sets + Slots:** the global store holds **secrets** (typed bags of **fields**, keyed by **slug** + **schema**). Project vaults are **value-free** lists of **slots** (`pinned` or `open`) with an `inject` map. References, not copies. Per-environment and file-type fields are in v1.
 - **Resolver:** strict 0/1/N, never guesses. More than one match is a hard `AMBIGUOUS` error with a value-free chooser.
-- **Sandbox + admission:** a project can only use **admitted** secrets. The agent can only **request** admission; it can never pull from the global store. Every admission needs human confirmation **plus** local auth (Touch ID / OS password / biometric). Batch admit = one box, one auth. No re-auth on later `kv run` by default.
-- **Injection (`kv run`):** decrypt in memory only, spawn the child with env set, mask values in child stdout/stderr, write nothing to disk, shred on exit. File-type fields materialize to tmpfs at `0600` and are shredded. `--dry-run` prints env-var names (values masked) and flags duplicate inject names, unfilled open slots, and ambiguity.
+- **Sandbox + admission:** a project can only use **admitted** secrets. The agent can only **request** admission; it can never pull from the global store. Every admission needs human confirmation **plus** local auth (Touch ID / OS password / biometric). Batch admit = one box, one auth. No re-auth on later `lockit run` by default.
+- **Injection (`lockit run`):** decrypt in memory only, spawn the child with env set, mask values in child stdout/stderr, write nothing to disk, shred on exit. File-type fields materialize to tmpfs at `0600` and are shredded. `--dry-run` prints env-var names (values masked) and flags duplicate inject names, unfilled open slots, and ambiguity.
 
 ## Invariants you must never violate
 

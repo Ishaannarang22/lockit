@@ -306,7 +306,9 @@ describe("lockit entry point (e2e)", () => {
     await withSandbox(async (home) => {
       const r = await runLockit(home, ["frobnicate"], { passphrase: PW });
       expect(r.code).toBe(1);
-      expect(r.stderr).toContain("usage: lockit <init|set|admit|status|secure|protect|lock|ls|run|import|export|pull|resolve|install|completion|help");
+      expect(r.stderr).toContain(
+        "usage: lockit <init|set|admit|status|secure|protect|lock|identity|share|accept|receive|ls|run|import|export|pull|resolve|install|completion|help",
+      );
       expect(r.stdout).toBe("");
     });
   });

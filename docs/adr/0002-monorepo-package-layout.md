@@ -27,15 +27,15 @@ Use a **pnpm workspace monorepo** with the following packages:
   model and the project-world sandbox), the store (encrypted at-rest
   persistence — the global store plus per-project vaults), and auth/admission
   gating (local presence auth).
-- **`packages/cli`** — the `kv` binary, the universal human **and** agent
+- **`packages/cli`** — the `lockit` binary, the universal human **and** agent
   interface.
 - **`packages/server`** — an optional self-hosted end-to-end sync/sharing
   server: members, devices, sharing, a shared team vault, Key Transparency, and
   OPAQUE login. It is a relay that only ever holds ciphertext.
 - **`plugin/`** — the Claude Code plugin: skill(s) plus hooks. It teaches
-  agent-safe `kv` usage and adds guardrails (for example, warning if a raw
+  agent-safe `lockit` usage and adds guardrails (for example, warning if a raw
   secret is about to be written into a file or command). It depends on the
-  `kv` CLI.
+  `lockit` CLI.
 - **`docs/`** — documentation.
 
 ## Consequences

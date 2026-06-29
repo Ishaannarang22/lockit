@@ -4,7 +4,7 @@ A guide for AI coding agents (and humans) working inside the `key_manager` repos
 
 ## What this project is
 
-`kv` is an open-source, local-first, AI-agent-safe developer secrets manager. It solves two pains: developers waste enormous time hunting and copy-pasting API keys across projects and prototypes, and secrets leak into AI-agent context and transcripts, shell history, `.env` files, and casual channels. The core ideas are: set a secret **once** and reuse it across every project with zero copy-paste; let AI agents **use** secrets without ever **seeing** them; and share secrets end-to-end encrypted to your other devices and teammates. It is a CLI (`kv`) with an optional self-hosted sync/sharing server for a team, and it needs no account and no third-party service to use locally.
+`lockit` is an open-source, local-first, AI-agent-safe developer secrets manager. It solves two pains: developers waste enormous time hunting and copy-pasting API keys across projects and prototypes, and secrets leak into AI-agent context and transcripts, shell history, `.env` files, and casual channels. The core ideas are: set a secret **once** and reuse it across every project with zero copy-paste; let AI agents **use** secrets without ever **seeing** them; and share secrets end-to-end encrypted to your other devices and teammates. It is a CLI (`lockit`) with an optional self-hosted sync/sharing server for a team, and it needs no account and no third-party service to use locally.
 
 > Account recovery is **not** part of this version. This is a deliberate, documented limitation of true zero-knowledge encryption: if you lose your passphrase and all of your devices, your data cannot be recovered. State this honestly in any docs or messages you write; never paper over it.
 
@@ -16,9 +16,9 @@ Dependencies flow upward: `crypto` depends on nothing, `core` depends on `crypto
 | --- | --- |
 | `packages/crypto` | The cryptographic trust root: envelope encryption, the key hierarchy, HPKE, signatures, and zero-knowledge primitives. Tiny, pure, **no I/O**, independently auditable. Includes a generic wrap-a-seed-to-any-public-key primitive that future features can build on. |
 | `packages/core` | The application logic: `vault` (the Sets+Slots data model and the project-world sandbox), `store` (encrypted at-rest persistence — the global store plus per-project vaults), and `auth`/admission gating (local presence auth). |
-| `packages/cli` | The `kv` binary — the universal human **and** agent interface. |
+| `packages/cli` | The `lockit` binary — the universal human **and** agent interface. |
 | `packages/server` | The optional self-hosted end-to-end sync/sharing server for a team: members, devices, sharing, a shared team vault, Key Transparency, and OPAQUE login. A relay that only ever holds **ciphertext**. |
-| `plugin/` | The Claude Code plugin — skill(s) plus hooks. Teaches agent-safe `kv` usage; hooks add guardrails (for example, warn if a raw secret is about to be written into a file or command). Depends on the `kv` CLI. |
+| `plugin/` | The Claude Code plugin — skill(s) plus hooks. Teaches agent-safe `lockit` usage; hooks add guardrails (for example, warn if a raw secret is about to be written into a file or command). Depends on the `lockit` CLI. |
 | `docs/` | Documentation. See the pointers at the bottom of this file. |
 
 **MCP is dropped from v1.** Security lives in the CLI, not in MCP; the CLI is universal (any shell-capable agent can use it), and a skill is Claude-Code sugar over the CLI. The only reason to add MCP later would be to reach AI hosts that cannot run a shell, and if added it would be an optional thin adapter over `core`, never a `core` dependency. Do not introduce MCP without that justification.
@@ -42,10 +42,10 @@ Honest limits you must document rather than hide: a child process inevitably hol
 
 - The **global store** holds **secrets**. A secret is a typed bag of one or more **fields**, identified by a portable human **slug** (for example `openai/dev`, `supabase/acme`) plus a **schema** (for example `openai`, `supabase`). A singleton is a Set with one field; a Supabase backend is a Set with three fields.
 - The store is keyed by **slug**, not by env-var name, so `supabase/acme` and `supabase/blog` can both contain a field named `SUPABASE_URL` with zero collision. This is the central problem the model solves, structurally. Renames are safe via an `aka` alias list. A `localId` is machine-local and is never committed.
-- A **project vault** (committed, e.g. `./.kv/vault.json`) is **value-free**: a list of **slots** (requirements). A slot is `{ schema, bind: pinned|open, to: slug-or-null, inject: { fieldKey -> EXACT_ENV_VAR_NAME } }`. `pinned` means exactly that slug (genuinely shared infrastructure); `open` means any secret of this schema that the developer supplies locally.
+- A **project vault** (committed, e.g. `./.lockit/vault.json`) is **value-free**: a list of **slots** (requirements). A slot is `{ schema, bind: pinned|open, to: slug-or-null, inject: { fieldKey -> EXACT_ENV_VAR_NAME } }`. `pinned` means exactly that slug (genuinely shared infrastructure); `open` means any secret of this schema that the developer supplies locally.
 - One-value-many-names: the `inject` map can map a field to many env-var names (e.g. `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `VITE_SUPABASE_URL`). Remember invariant #5 above.
 - Per-environment (dev/staging/prod) and file-type fields (`type=file`, materialized to tmpfs at `0600`, env var points at the path, shredded on exit) are in scope for v1.
-- A gitignored local resolution cache (e.g. `./.kv/local.json`) records how `open` slots are filled on this machine.
+- A gitignored local resolution cache (e.g. `./.lockit/local.json`) records how `open` slots are filled on this machine.
 
 Full detail: [docs/data-model.md](docs/data-model.md).
 
@@ -61,7 +61,7 @@ pnpm -r lint            # eslint + prettier
 pnpm -r test            # vitest across the workspace
 ```
 
-To work in a single package, scope with a filter, e.g. `pnpm --filter @kv/crypto test`. CI runs typecheck, lint, test, and build on every change; all four must pass.
+To work in a single package, scope with a filter, e.g. `pnpm --filter @lockit/crypto test`. CI runs typecheck, lint, test, and build on every change; all four must pass.
 
 `crypto` and `core` are security-critical and carry the heaviest coverage: crypto round-trips, injection isolation, output masking, tamper detection, the sandbox-cannot-be-bypassed property, and the agent-never-sees-a-value property. When you touch these packages, add or extend tests for the relevant invariant above.
 
