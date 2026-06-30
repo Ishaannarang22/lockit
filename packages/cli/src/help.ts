@@ -60,7 +60,12 @@ COMMANDS (global store)
   identity [--out <file>]
         Create or show this device's public sharing identity. The file is public
         key material only; private sharing keys stay sealed in LOCKIT_HOME.
-  share <slug> --to <public-identity.json> [--out <file>] [--relay <url>]
+  identity register <username> --relay <url>
+        Register this device's public identity under a globally unique username
+        on a relay. First claim wins; the relay stores public keys only.
+  identity whois <username> --relay <url>
+        Resolve a relay username to its public identity id, value-free.
+  share <slug> --to <public-identity.json|@username> [--out <file>] [--relay <url>]
         Encrypt and sign a point-in-time copy of one stored secret for a friend.
         The artifact is ciphertext; a relay stores it but cannot decrypt it.
   accept <share-file> [--as <slug>]
@@ -104,8 +109,9 @@ EXAMPLES
   lockit run -- npm start                                      # or inject in memory, no .env
   # end-to-end share over a local relay
   lockit identity --out bob.lockit-id.json
+  lockit identity register bob --relay http://127.0.0.1:8787
   printf 'sk-live-123' | lockit set openai/dev OPENAI_API_KEY
-  lockit share openai/dev --to bob.lockit-id.json --relay http://127.0.0.1:8787
+  lockit share openai/dev --to @bob --relay http://127.0.0.1:8787
   lockit receive --relay http://127.0.0.1:8787
 
 Docs: https://www.npmjs.com/package/@lockit/cli

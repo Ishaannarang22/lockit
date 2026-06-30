@@ -86,4 +86,44 @@ describe("share over local relay (e2e, real binaries)", () => {
       relay.child.kill();
     }
   });
+
+  it("registers a username and sends a share to @username", async () => {
+    const relay = await startRelay();
+    try {
+      await withSandbox(async (homeA) => {
+        await withSandbox(async (homeB) => {
+          const register = await runLockit(
+            homeB,
+            ["identity", "register", "bob", "--relay", relay.url],
+            { passphrase: "pwB" },
+          );
+          expect(register.code).toBe(0);
+          expect(register.stdout).toContain("registered @bob");
+
+          const setA = await runLockit(homeA, ["set", "openai/dev", "OPENAI_API_KEY"], {
+            passphrase: "pwA",
+            stdin: "sk-alice-secret",
+          });
+          expect(setA.code).toBe(0);
+
+          const send = await runLockit(
+            homeA,
+            ["share", "openai/dev", "--to", "@bob", "--relay", relay.url],
+            { passphrase: "pwA" },
+          );
+          expect(send.code).toBe(0);
+          expect(send.stdout).toContain("@bob");
+          expect(send.stdout).not.toContain("sk-alice-secret");
+
+          const receive = await runLockit(homeB, ["receive", "--relay", relay.url], {
+            passphrase: "pwB",
+          });
+          expect(receive.code).toBe(0);
+          expect(receive.stdout).toContain("received 1 share");
+        });
+      });
+    } finally {
+      relay.child.kill();
+    }
+  });
 });

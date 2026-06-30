@@ -1,6 +1,6 @@
 {
   "name": "@lockit/crypto",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pure, no-I/O cryptographic trust root for lockit.",
   "license": "Apache-2.0",
   "type": "module",
