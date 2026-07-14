@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { generateSharingIdentity, publicIdentityToWire, publicSharingIdentity } from "@lockit/crypto";
-import { createRelayServer, loadRelayStore, parseRelayOptions } from "./index.js";
+import {
+  createMemoryRelayStore,
+  createRelayServer,
+  loadRelayStore,
+  parseRelayOptions,
+} from "./index.js";
 
 const servers: ReturnType<typeof createRelayServer>[] = [];
 
@@ -147,5 +152,41 @@ describe("username registry", () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("relay request logging", () => {
+  it("logs value-free operations without logging artifact bodies", async () => {
+    const lines: string[] = [];
+    const server = createRelayServer(createMemoryRelayStore(), { logger: (line) => lines.push(line) });
+    const url = await listen(server);
+    const identity = publicIdentityToWire(publicSharingIdentity(await generateSharingIdentity()));
+
+    await fetch(`${url}/users`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: "logs", identity }),
+    });
+    await fetch(`${url}/users/logs`);
+    const posted = await fetch(`${url}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        to: identity.id,
+        artifact: "encrypted-artifact-not-for-logs",
+      }),
+    });
+    const body = (await posted.json()) as { id: string };
+    await fetch(`${url}/messages/${encodeURIComponent(identity.id)}`);
+    await fetch(`${url}/messages/${encodeURIComponent(body.id)}`, { method: "DELETE" });
+
+    const text = lines.join("\n");
+    expect(text).toContain("event=user_register");
+    expect(text).toContain("event=user_lookup");
+    expect(text).toContain("event=message_post");
+    expect(text).toContain("artifactBytes=");
+    expect(text).toContain("event=messages_fetch");
+    expect(text).toContain("event=message_delete");
+    expect(text).not.toContain("encrypted-artifact-not-for-logs");
   });
 });

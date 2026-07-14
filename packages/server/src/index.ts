@@ -39,6 +39,12 @@ export interface RelayStore {
   registerUser(user: RelayUser): Promise<"created" | "same" | "conflict">;
 }
 
+export type RelayLogger = (line: string) => void;
+
+export interface RelayServerOptions {
+  logger?: RelayLogger;
+}
+
 const USERNAME_RE = /^[a-z0-9_][a-z0-9_-]{2,31}$/;
 
 export function normalizeUsername(username: string): string {
@@ -407,6 +413,15 @@ function sendText(res: ServerResponse, status: number, body: string): void {
   res.end(body);
 }
 
+function logRelay(logger: RelayLogger | undefined, event: string, fields: Record<string, unknown>): void {
+  if (logger === undefined) return;
+  const parts = [`event=${event}`];
+  for (const [key, value] of Object.entries(fields)) {
+    parts.push(`${key}=${String(value)}`);
+  }
+  logger(`[lockit-relay] ${new Date().toISOString()} ${parts.join(" ")}`);
+}
+
 async function readBody(req: IncomingMessage, maxBytes = 2 * 1024 * 1024): Promise<string> {
   const chunks: Buffer[] = [];
   let total = 0;
@@ -419,23 +434,39 @@ async function readBody(req: IncomingMessage, maxBytes = 2 * 1024 * 1024): Promi
   return Buffer.concat(chunks).toString("utf8");
 }
 
-export function createRelayServer(store: RelayStore = createMemoryRelayStore()) {
+export function createRelayServer(
+  store: RelayStore = createMemoryRelayStore(),
+  options: RelayServerOptions = {},
+) {
   return createServer((req, res) => {
-    void handle(store, req, res).catch((e: unknown) => {
+    void handle(store, options.logger, req, res).catch((e: unknown) => {
+      logRelay(options.logger, "request_error", {
+        method: req.method ?? "UNKNOWN",
+        path: req.url ?? "/",
+        error: e instanceof Error ? e.message : String(e),
+      });
       sendJson(res, 400, { error: e instanceof Error ? e.message : String(e) });
     });
   });
 }
 
-async function handle(store: RelayStore, req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handle(
+  store: RelayStore,
+  logger: RelayLogger | undefined,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
   const url = new URL(req.url ?? "/", "http://lockit.local");
   if (req.method === "GET" && url.pathname === "/health") {
+    logRelay(logger, "health", { status: 200 });
     sendJson(res, 200, { ok: true });
     return;
   }
   if (req.method === "GET" && url.pathname === "/messages") {
+    const messages = await store.listAll();
+    logRelay(logger, "messages_list_all", { status: 200, count: messages.length });
     sendJson(res, 200, {
-      messages: (await store.listAll()).map((m) => ({
+      messages: messages.map((m) => ({
         id: m.id,
         to: m.to,
         artifact: m.artifact,
@@ -463,10 +494,17 @@ async function handle(store: RelayStore, req: IncomingMessage, res: ServerRespon
       updatedAt: now,
     });
     if (result === "conflict") {
+      logRelay(logger, "user_register", { status: 409, username, identityId: identity.id });
       sendJson(res, 409, { error: "username already registered" });
       return;
     }
     const user = await store.getUser(username);
+    logRelay(logger, "user_register", {
+      status: result === "created" ? 201 : 200,
+      result,
+      username,
+      identityId: identity.id,
+    });
     sendJson(res, result === "created" ? 201 : 200, { user });
     return;
   }
@@ -474,9 +512,15 @@ async function handle(store: RelayStore, req: IncomingMessage, res: ServerRespon
     const username = decodeURIComponent(url.pathname.slice("/users/".length));
     const user = await store.getUser(username);
     if (user === undefined) {
+      logRelay(logger, "user_lookup", { status: 404, username: normalizeUsername(username) });
       sendJson(res, 404, { error: "username not found" });
       return;
     }
+    logRelay(logger, "user_lookup", {
+      status: 200,
+      username: user.username,
+      identityId: user.identityId,
+    });
     sendJson(res, 200, { user });
     return;
   }
@@ -493,13 +537,21 @@ async function handle(store: RelayStore, req: IncomingMessage, res: ServerRespon
       artifact: body.artifact,
       receivedAt: new Date().toISOString(),
     });
+    logRelay(logger, "message_post", {
+      status: 201,
+      id,
+      to: body.to,
+      artifactBytes: Buffer.byteLength(body.artifact),
+    });
     sendJson(res, 201, { id });
     return;
   }
   if (req.method === "GET" && url.pathname.startsWith("/messages/")) {
     const to = decodeURIComponent(url.pathname.slice("/messages/".length));
+    const messages = await store.listForRecipient(to);
+    logRelay(logger, "messages_fetch", { status: 200, to, count: messages.length });
     sendJson(res, 200, {
-      messages: (await store.listForRecipient(to)).map((m) => ({
+      messages: messages.map((m) => ({
         id: m.id,
         artifact: m.artifact,
         receivedAt: m.receivedAt,
@@ -510,9 +562,11 @@ async function handle(store: RelayStore, req: IncomingMessage, res: ServerRespon
   if (req.method === "DELETE" && url.pathname.startsWith("/messages/")) {
     const id = decodeURIComponent(url.pathname.slice("/messages/".length));
     await store.delete(id);
+    logRelay(logger, "message_delete", { status: 200, id });
     sendJson(res, 200, { ok: true });
     return;
   }
+  logRelay(logger, "not_found", { status: 404, method: req.method ?? "UNKNOWN", path: url.pathname });
   sendText(res, 404, "not found\n");
 }
 
@@ -551,7 +605,7 @@ async function main(): Promise<void> {
       : opts.dataPath === undefined
         ? createMemoryRelayStore()
         : await loadRelayStore(opts.dataPath);
-  const server = createRelayServer(store);
+  const server = createRelayServer(store, { logger: (line) => process.stdout.write(`${line}\n`) });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(opts.port, opts.host, () => resolve());
