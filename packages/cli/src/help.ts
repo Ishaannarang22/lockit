@@ -53,9 +53,27 @@ COMMANDS (global store)
   import [path] [--as <slug>]
         Import a .env file into the encrypted store (default: ./.env). Does not
         modify the source file.
-  pull <VAR...> | <bundle#VAR> | --all <bundle> [--out <file>] [--force] [--yes]
+  pull <VAR...> | <bundle#VAR> | --all <bundle> [--out <file>] [--force]
         Write real secret values into a .env file. Asks for confirmation on the
-        terminal first; --yes (or LOCKIT_PULL_YES=1) skips it for scripts/agents.
+        terminal first; noninteractive plaintext writes are refused unless the
+        store unlock itself proves local human presence.
+  identity [--out <file>]
+        Create or show this device's public sharing identity. The file is public
+        key material only; private sharing keys stay sealed in LOCKIT_HOME.
+  identity register <username> --relay <url>
+        Register this device's public identity under a globally unique username
+        on a relay. First claim wins; the relay stores public keys only.
+  identity whois <username> --relay <url>
+        Resolve a relay username to its public identity id, value-free.
+  share <slug> --to <public-identity.json|@username> [--out <file>] [--relay <url>]
+        Encrypt and sign a point-in-time copy of one stored secret for a friend.
+        The artifact is ciphertext; a relay stores it but cannot decrypt it.
+  accept <share-file> [--as <slug>]
+        Decrypt an encrypted share addressed to this identity and create a new
+        local copy. Existing slugs are never overwritten; lockit suffixes instead.
+  receive --relay <url>
+        Fetch encrypted shares addressed to this identity from a local relay and
+        accept each one as a new local copy.
   install [zsh|bash] [--no-skill]
         Set up lockit: shell tab-completion AND the agent-safe Claude skill
         (installed globally to ~/.claude/skills, so Claude knows lockit in every
@@ -77,7 +95,6 @@ CONFIG (environment variables)
   LOCKIT_PASSPHRASE  Optional override key instead of the keychain-protected key
   LOCKIT_UNLOCK_TTL  Seconds one Touch ID unlock lasts before re-prompting (default 90;
                      0 = prompt every command). Clear early with 'lockit lock'.
-  LOCKIT_PULL_YES=1  Skip the pull confirmation (non-interactive)
 
 EXAMPLES
   # global store
@@ -90,6 +107,12 @@ EXAMPLES
   lockit admit CARTESIA_API_KEY DEEPGRAM_API_KEY               # pick keys -> prompts -> writes ./.env
   lockit status
   lockit run -- npm start                                      # or inject in memory, no .env
+  # end-to-end share over a local relay
+  lockit identity --out bob.lockit-id.json
+  lockit identity register bob --relay http://127.0.0.1:8787
+  printf 'sk-live-123' | lockit set openai/dev OPENAI_API_KEY
+  lockit share openai/dev --to @bob --relay http://127.0.0.1:8787
+  lockit receive --relay http://127.0.0.1:8787
 
 Docs: https://www.npmjs.com/package/@lockit/cli
 `;

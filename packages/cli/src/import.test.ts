@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cmdImport } from "./import.js";
@@ -61,6 +61,40 @@ describe("cmdImport", () => {
     expect(ls.stdout).toContain("API_KEY");
     expect(ls.stdout).toContain("app/dev");
     expect(ls.stdout).not.toContain("sk-live-123");
+  });
+
+  it("derives the canonical provider as identity and records cwd as a source tag (not identity)", async () => {
+    // Run with a cwd whose basename is `plugin-manager`. The old behavior would
+    // have used that as the slug; the new behavior derives the provider (`pulse`)
+    // from the registry and records `source:plugin-manager` only as a tag.
+    const projDir = join(dir, "plugin-manager");
+    mkdirSync(projDir, { recursive: true });
+    const envFile = join(projDir, ".env");
+    writeFileSync(envFile, "PULSE_API_KEY=sk-1\n");
+
+    const prevCwd = process.cwd();
+    process.chdir(projDir);
+    try {
+      const imp = makeIo([envFile], home);
+      expect(await cmdImport(imp)).toBe(0);
+    } finally {
+      process.chdir(prevCwd);
+    }
+
+    const ls = makeIo(["--vars"], home);
+    expect(await cmdLs(ls)).toBe(0);
+    expect(ls.stdout).toContain("pulse");
+    expect(ls.stdout).not.toContain("plugin-manager");
+    expect(ls.stdout).not.toContain("sk-1");
+
+    // Inspect the persisted store directly to assert the tag and the absence of a
+    // `plugin-manager` slug.
+    const { loadStore, storePath, getSecret } = await import("@lockit/core");
+    const store = await loadStore(PASS, storePath());
+    const pulse = getSecret(store, "pulse");
+    expect(pulse).toBeDefined();
+    expect(pulse?.tags).toContain("source:plugin-manager");
+    expect(getSecret(store, "plugin-manager")).toBeUndefined();
   });
 
   it("returns 1 and stores nothing on a parse error", async () => {

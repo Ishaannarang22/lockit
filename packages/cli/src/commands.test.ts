@@ -47,7 +47,7 @@ describe("lockit cli commands", () => {
   let prevPass: string | undefined;
 
   beforeEach(async () => {
-    home = await mkdtemp(join(tmpdir(), "kv-cli-"));
+    home = await mkdtemp(join(tmpdir(), "lockit-cli-"));
     prevHome = process.env.LOCKIT_HOME;
     prevPass = process.env.LOCKIT_PASSPHRASE;
     process.env.LOCKIT_HOME = home;
@@ -88,7 +88,7 @@ describe("lockit cli commands", () => {
       expect(field?.value).toBe(SECRET);
       expect(field?.value).not.toBe("ARGV_SHOULD_BE_IGNORED");
 
-      // And the child injection proves the same value, masked in kv's output.
+      // And the child injection proves the same value, masked in lockit's output.
       const r = await run(cmdRun, [
         "openai/dev",
         "node",
@@ -438,7 +438,7 @@ describe("lockit cli commands", () => {
   // cmdRun: injection + masking (drives a real node child)
   // ---------------------------------------------------------------------------
   describe("cmdRun — injection and masking", () => {
-    it("injects env-type fields; child reads the value, kv masks it in output", async () => {
+    it("injects env-type fields; child reads the value, lockit masks it in output", async () => {
       await run(cmdSet, ["openai/dev", "MYKEY"], `${SECRET}\n`);
       const r = await run(cmdRun, [
         "openai/dev",
@@ -658,17 +658,17 @@ describe("lockit cli commands", () => {
 
     it("reports a spawn failure (command not found) on stderr with exit 1", async () => {
       await run(cmdSet, ["openai/dev", "MYKEY"], `${SECRET}\n`);
-      const r = await run(cmdRun, ["openai/dev", "this-binary-does-not-exist-kv-test", "arg"]);
+      const r = await run(cmdRun, ["openai/dev", "this-binary-does-not-exist-lockit-test", "arg"]);
       expect(r.code).toBe(1);
-      expect(r.err).toContain("failed to run this-binary-does-not-exist-kv-test");
+      expect(r.err).toContain("failed to run this-binary-does-not-exist-lockit-test");
       expect(r.err).not.toContain(SECRET);
     });
   });
 
   // ---------------------------------------------------------------------------
-  // Invariant: kv's own output never carries a secret value
+  // Invariant: lockit's own output never carries a secret value
   // ---------------------------------------------------------------------------
-  describe("invariant — kv output is value-free", () => {
+  describe("invariant — lockit output is value-free", () => {
     it("a usage error from run contains no value", async () => {
       const r = await run(cmdRun, []);
       expect(r.err).not.toContain(SECRET);

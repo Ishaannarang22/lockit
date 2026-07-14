@@ -6,3 +6,19 @@ export { encodeBlob, decodeBlob, BLOB_VERSION } from "./blob.js";
 export type { SealedBlob } from "./blob.js";
 export { sealWithPassphrase, openWithPassphrase } from "./vault-seal.js";
 export { wrapKey, unwrapKey } from "./keywrap.js";
+export {
+  assertIdentityId,
+  createShareArtifact,
+  generateSharingIdentity,
+  identityId,
+  openShareArtifact,
+  publicIdentityFromWire,
+  publicIdentityToWire,
+  publicSharingIdentity,
+} from "./share-artifact.js";
+export type {
+  CreateShareArtifactInput,
+  OpenedShareArtifact,
+  PublicSharingIdentity,
+  SharingIdentity,
+} from "./share-artifact.js";

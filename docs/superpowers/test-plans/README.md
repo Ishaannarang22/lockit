@@ -7,7 +7,7 @@ tests can be written and activated the moment a phase lands.
 
 Tests for **built** phases are real and run in CI — unit tests as `*.test.ts`
 beside the source, and black-box tests as `e2e/*.e2e.test.ts` (which spawn the
-real `kv` binary in disposable sandbox HOMEs via `pnpm test:e2e`).
+real `lockit` binary in disposable sandbox HOMEs via `pnpm test:e2e`).
 
 | Phase                                             | Plan                                                             |
 | ------------------------------------------------- | ---------------------------------------------------------------- |

@@ -6,7 +6,7 @@
 
 **Depends on:** Plan #7 (identity + end-to-end sharing crypto: device enrollment, sigchains, UIK resolution, shareable envelopes). Transitively on the crypto trust root from Plans #1–#2 and the core store/vault from Plans #3–#4. Plan #7 must supply the client-side seal/unseal, envelope format, sigchain construction, and Key Transparency client verifiers that this server stores against and serves to.
 
-**Packages touched:** `packages/server` (new); read-only consumption of `@kv/crypto` and `@kv/core` for shared wire types, envelope/sigchain/KT type definitions, and proof verifiers reused in tests. No changes to `crypto`, `core`, `cli`, or `plugin`.
+**Packages touched:** `packages/server` (new); read-only consumption of `@lockit/crypto` and `@lockit/core` for shared wire types, envelope/sigchain/KT type definitions, and proof verifiers reused in tests. No changes to `crypto`, `core`, `cli`, or `plugin`.
 
 ---
 
@@ -26,7 +26,7 @@
 
 ## Files / modules to create or modify — concrete paths + one-line responsibility
 
-- `packages/server/package.json` — package manifest; depends on `@kv/crypto`, `@kv/core`, an HTTP framework, and `@transparency-dev/merkle`.
+- `packages/server/package.json` — package manifest; depends on `@lockit/crypto`, `@lockit/core`, an HTTP framework, and `@transparency-dev/merkle`.
 - `packages/server/tsconfig.json` — extends the base tsconfig; `src` → `dist`.
 - `packages/server/src/index.ts` — public entry: `createServer(deps)` factory and exported types.
 - `packages/server/src/app.ts` — wires routes to handlers given injected ports (store, KT log, OPAQUE, scope, recovery).
@@ -41,7 +41,7 @@
 - `packages/server/src/team-vault.ts` — append-only team-vault item submit/list/fetch handlers + access-metadata records.
 - `packages/server/src/kt/log.ts` — append-only Merkle KT log: append a mapping, produce inclusion + consistency proofs, serve signed checkpoints.
 - `packages/server/src/kt/routes.ts` — HTTP handlers exposing the KT log (append, lookup, proofs, checkpoint).
-- `packages/server/src/wire.ts` — request/response wire schemas (validated; ciphertext + public material + metadata only) shared with clients via `@kv/core` types where they exist.
+- `packages/server/src/wire.ts` — request/response wire schemas (validated; ciphertext + public material + metadata only) shared with clients via `@lockit/core` types where they exist.
 - `packages/server/src/errors.ts` — structured error types (e.g. `PlaintextRejectedError`, `SigchainConflictError`, `ProofUnavailableError`).
 - Test files colocated as `*.test.ts` next to each source module, plus an integration suite at `packages/server/src/integration.test.ts` driving the assembled server against the memory store.
 

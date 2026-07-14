@@ -1,11 +1,11 @@
 # Threat Model
 
-This document describes what `kv` protects, what it does not protect, and the
+This document describes what `lockit` protects, what it does not protect, and the
 reasoning behind each guarantee. It is written to be honest about limits:
 every guarantee is paired with the precise conditions under which it holds, and
 the known gaps are stated plainly rather than hidden.
 
-`kv` is a local-first developer secrets manager with an optional self-hosted
+`lockit` is a local-first developer secrets manager with an optional self-hosted
 sync/sharing server. It uses client-side envelope encryption (the **OrgMesh**
 crypto design); the server is a dumb, append-only encrypted store-and-relay
 that only ever holds ciphertext. For the cryptographic construction referenced
@@ -21,7 +21,7 @@ What an attacker would want, ranked roughly by sensitivity.
 
 | Asset | Description | Where it lives |
 | --- | --- | --- |
-| **Secret values** | The actual API keys, tokens, connection strings, and file-type secrets (e.g. a Google service-account JSON). The thing the whole product exists to protect. | Encrypted at rest in the local store and per-project vaults; decrypted only in memory during `kv run`. |
+| **Secret values** | The actual API keys, tokens, connection strings, and file-type secrets (e.g. a Google service-account JSON). The thing the whole product exists to protect. | Encrypted at rest in the local store and per-project vaults; decrypted only in memory during `lockit run`. |
 | **Key material** | The passphrase, the optional `SecretKey` second factor, the `MasterKEK`, `AccountKey`, per-device key (`DK`), `User Identity Seed`/`UIK`, `Personal-Vault Seed`/`PVK`, team seeds and team keys, and per-item `DEK`s. Compromise of key material is compromise of every value it can reach. | Private halves never leave the device. Wrapped (encrypted) blobs may be uploaded to the optional server. |
 | **Metadata** | Slugs, schemas, field names, tags, version history, sizes, timestamps, public keys, the Key Transparency log, sigchains, access-control records, and the who-shares-with-whom graph. Values are never in this category. | Local store; visible to a server operator when the optional server is used. |
 
@@ -35,7 +35,7 @@ material**. Metadata is explicitly a weaker-protected asset (see
 
 1. **The device.** The fully trusted zone. Private keys, seeds, the passphrase,
    and decrypted plaintext exist here. If the device (and its unlocked OS user
-   session) is fully compromised, `kv` cannot save you; this is true of any
+   session) is fully compromised, `lockit` cannot save you; this is true of any
    local tool.
 
 2. **The global store ↔ the project world.** Within a single device, the global
@@ -256,7 +256,7 @@ reach.
 This is the most important limit to understand, and it is one we cannot fully
 close. It deserves its own section precisely because it is tempting to overclaim.
 
-`kv` keeps secret **values** out of the agent's eyes throughout normal
+`lockit` keeps secret **values** out of the agent's eyes throughout normal
 orchestration:
 
 - All agent-facing output — `list`, `status`, `run --dry-run`, the chooser —
@@ -265,7 +265,7 @@ orchestration:
 - The resolver is strict 0/1/N and never guesses. Ambiguity is a hard,
   structured error with a value-free numbered chooser; the agent cannot resolve
   it by picking a value.
-- On `kv run`, values are decrypted in memory only, set as env vars (or
+- On `lockit run`, values are decrypted in memory only, set as env vars (or
   materialized as a `0600` tmpfs file for file-type secrets) for the child
   process's lifetime, masked in the child's stdout/stderr, written nowhere on
   disk, and shredded on exit. The agent orchestrates; values flow from the vault
@@ -274,7 +274,7 @@ orchestration:
 **The honest limit:** a child process inevitably **holds the real value — it is
 using it.** A rogue or confused agent that can run arbitrary commands could
 direct the child (or another command) to print, copy, or transmit that value.
-**Containment is not omnipotence.** `kv` makes the *easy* leaks hard and the
+**Containment is not omnipotence.** `lockit` makes the *easy* leaks hard and the
 *invisible* leaks visible; it cannot make exfiltration impossible while still
 letting programs use their secrets.
 
@@ -335,7 +335,7 @@ version.
 
 ### Node cannot guarantee zeroing secrets from memory
 
-Because the runtime is garbage-collected, `kv` **cannot promise** that a
+Because the runtime is garbage-collected, `lockit` **cannot promise** that a
 plaintext secret is wiped from memory at a precise moment. We minimize plaintext
 lifetime — decrypt in memory only, hold for the child's lifetime, shred temp
 files, and avoid persisting — but a guaranteed memory wipe is not something Node

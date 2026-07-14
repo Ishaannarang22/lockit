@@ -10,3 +10,8 @@ export function lockitHome(): string {
 export function storePath(): string {
   return join(lockitHome(), "store.json");
 }
+
+/** The path to this device's sealed end-to-end sharing identity. */
+export function identityPath(): string {
+  return join(lockitHome(), "identity.json");
+}

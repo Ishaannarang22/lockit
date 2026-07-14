@@ -14,6 +14,7 @@ import {
   loadStore,
   lockitHome,
   storePath,
+  identityPath,
 } from "./index.js";
 
 // These mirror the underlying modules so we can prove the barrel re-exports the
@@ -29,7 +30,11 @@ import {
   isValidFieldKey as isValidFieldKeySrc,
 } from "./store/store.js";
 import { saveStore as saveStoreSrc, loadStore as loadStoreSrc } from "./store/store-persist.js";
-import { lockitHome as lockitHomeSrc, storePath as storePathSrc } from "./paths.js";
+import {
+  identityPath as identityPathSrc,
+  lockitHome as lockitHomeSrc,
+  storePath as storePathSrc,
+} from "./paths.js";
 
 describe("@lockit/core barrel re-exports", () => {
   it("re-exports every model/secret value binding (same identity)", () => {
@@ -55,42 +60,58 @@ describe("@lockit/core barrel re-exports", () => {
   it("re-exports the path helpers (same identity)", () => {
     expect(lockitHome).toBe(lockitHomeSrc);
     expect(storePath).toBe(storePathSrc);
+    expect(identityPath).toBe(identityPathSrc);
   });
 
   it("exposes exactly the documented public surface (no missing/extra exports)", () => {
     expect(Object.keys(barrel).sort()).toEqual(
       [
+        "acceptSecretShare",
+        "addTag",
+        "bindKey",
+        "builtinRegistry",
         "createSecret",
+        "createSecretShare",
         "emptyStore",
         "emptyVault",
-        "bindKey",
-        "unbindKey",
-        "setVaultSecure",
-        "vaultRef",
+        "entryFor",
         "findProjectRoot",
-        "vaultPath",
-        "readVault",
-        "writeVault",
-        "initProject",
-        "projectLocalSlug",
-        "parseRef",
-        "resolveBinding",
-        "resolveVaultEnv",
-        "resolveAdmit",
         "getSecret",
+        "identityPath",
+        "initProject",
         "isValidFieldKey",
         "isValidSlug",
-        "lockitHome",
         "listSecrets",
+        "loadOrCreateIdentity",
         "loadStore",
+        "lockitHome",
         "mergeDotenv",
+        "mergeRegistries",
         "parseDotenv",
+        "parsePublicIdentity",
+        "parseRef",
+        "parseReferences",
+        "projectLocalSlug",
+        "providerForEnv",
+        "publicIdentity",
+        "readVault",
         "removeSecret",
+        "resolveAdmit",
+        "resolveBinding",
+        "resolveRef",
         "resolveVar",
+        "resolveVaultEnv",
         "saveStore",
         "secretEnv",
+        "serializePublicIdentity",
+        "serializeReferences",
+        "setVaultSecure",
         "storePath",
+        "unbindKey",
         "upsertField",
+        "vaultPath",
+        "vaultRef",
+        "writeVault",
       ].sort(),
     );
   });
@@ -110,6 +131,7 @@ describe("@lockit/core barrel re-exports", () => {
       loadStore,
       lockitHome,
       storePath,
+      identityPath,
     ]) {
       expect(typeof fn).toBe("function");
     }

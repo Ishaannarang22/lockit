@@ -22,10 +22,10 @@ import Security
 import LocalAuthentication
 
 func errOut(_ s: String) { FileHandle.standardError.write((s + "\\n").data(using: .utf8)!) }
-@inline(__always) func die(_ code: Int32, _ msg: String) -> Never { errOut("kvkey: " + msg); exit(code) }
+@inline(__always) func die(_ code: Int32, _ msg: String) -> Never { errOut("lockit: " + msg); exit(code) }
 
 let args = CommandLine.arguments
-guard args.count >= 4 else { die(1, "usage: kvkey <wrap|unwrap|delete> <service> <account>") }
+guard args.count >= 4 else { die(1, "usage: lockit <wrap|unwrap|delete> <service> <account>") }
 let cmd = args[1], service = args[2], account = args[3]
 
 func baseQuery() -> [String: Any] {

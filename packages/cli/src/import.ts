@@ -1,22 +1,33 @@
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import {
+  addTag,
+  builtinRegistry,
   emptyStore,
   loadStore,
   parseDotenv,
+  providerForEnv,
   saveStore,
   storePath,
   upsertField,
 } from "@lockit/core";
 import { resolveKey, type Io } from "./commands.js";
 
-/** Turn an arbitrary directory name into a valid lowercase slug segment. */
-function slugifyDir(name: string): string {
+/** Turn an arbitrary string into a valid lowercase slug segment. */
+function slugifySegment(name: string): string {
   const s = name
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^[._-]+|[._-]+$/g, "");
   return s.length > 0 ? s : "imported";
+}
+
+/** Free-string provider fallback when the registry doesn't recognize an env key:
+ *  the lowercased leading underscore-segment, slugified (e.g. `FOO_API_KEY` ->
+ *  `foo`, `TOKEN` -> `token`). Never the cwd. */
+function fallbackProvider(envKey: string): string {
+  const lead = envKey.split("_")[0] ?? envKey;
+  return slugifySegment(lead);
 }
 
 /** `lockit import [path] [--as <slug>]` — read a .env into the encrypted store. */
@@ -40,8 +51,9 @@ export async function cmdImport(io: Io): Promise<number> {
     }
   }
   const filePath = path ?? "./.env";
-  const resolvedSlug = slug ?? slugifyDir(basename(process.cwd()));
-  const schema = resolvedSlug.split("/")[0] ?? resolvedSlug;
+  // The cwd is provenance, never identity: it becomes a `source:` tag only.
+  const cwdName = slugifySegment(basename(process.cwd()));
+  const sourceTag = `source:${cwdName}`;
 
   let text: string;
   try {
@@ -66,17 +78,41 @@ export async function cmdImport(io: Io): Promise<number> {
   } catch {
     store = emptyStore();
   }
-  for (const entry of entries) {
-    store = upsertField(store, {
-      slug: resolvedSlug,
-      schema,
-      key: entry.key,
-      type: "env",
-      value: entry.value,
-    });
+
+  let target: string;
+  if (slug !== undefined) {
+    // Explicit identity: all entries land under `slug`; schema is its first segment.
+    const schema = slug.split("/")[0] ?? slug;
+    for (const entry of entries) {
+      store = upsertField(store, {
+        slug,
+        schema,
+        key: entry.key,
+        type: "env",
+        value: entry.value,
+      });
+    }
+    store = addTag(store, slug, sourceTag);
+    target = slug;
+  } else {
+    // Per entry, derive the canonical provider from the registry (or a free-string
+    // fallback). The provider is both slug and schema; the cwd is only a tag.
+    for (const entry of entries) {
+      const provider = providerForEnv(builtinRegistry, entry.key) ?? fallbackProvider(entry.key);
+      store = upsertField(store, {
+        slug: provider,
+        schema: provider,
+        key: entry.key,
+        type: "env",
+        value: entry.value,
+      });
+      store = addTag(store, provider, sourceTag);
+    }
+    target = "the store";
   }
+
   await saveStore(store, passphrase, sp);
 
-  io.out(`imported ${entries.length} var(s) into ${resolvedSlug}\n`);
+  io.out(`imported ${entries.length} var(s) into ${target}\n`);
   return 0;
 }

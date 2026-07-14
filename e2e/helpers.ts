@@ -42,7 +42,7 @@ export function runLockit(home: string, args: string[], opts: RunOpts = {}): Pro
 /** Create a disposable LOCKIT_HOME, run `fn`, then remove it — even on failure.
  *  Each call is isolated, so e2e tests are safe to run in parallel. */
 export async function withSandbox<T>(fn: (home: string) => Promise<T>): Promise<T> {
-  const home = await mkdtemp(join(tmpdir(), "kv-e2e-"));
+  const home = await mkdtemp(join(tmpdir(), "lockit-e2e-"));
   try {
     return await fn(home);
   } finally {

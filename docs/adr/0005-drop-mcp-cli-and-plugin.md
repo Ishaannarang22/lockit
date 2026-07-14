@@ -6,8 +6,8 @@ Accepted
 
 ## Context
 
-**kv** must be usable by AI agents, not just humans. One obvious path is to ship
-an MCP (Model Context Protocol) server so AI hosts can call kv as a set of
+**lockit** must be usable by AI agents, not just humans. One obvious path is to ship
+an MCP (Model Context Protocol) server so AI hosts can call lockit as a set of
 tools. But the security model of this product lives in the way secrets are
 admitted and injected, not in any particular transport. We had to decide where
 the agent interface belongs for v1.
@@ -15,13 +15,13 @@ the agent interface belongs for v1.
 Key observations:
 
 - Security lives in the CLI, not in MCP. The admission gating, sandbox, and
-  in-memory injection are enforced by `kv` regardless of who calls it.
+  in-memory injection are enforced by `lockit` regardless of who calls it.
 - The CLI is universal: **any** shell-capable agent can use it.
 - A Claude Code skill is essentially sugar over the CLI.
 
 ## Decision
 
-**Drop MCP from v1.** The `kv` CLI is the single universal interface for both
+**Drop MCP from v1.** The `lockit` CLI is the single universal interface for both
 humans and agents. Agent ergonomics are delivered through the
 [`plugin/`](0002-monorepo-package-layout.md) — a Claude Code skill plus hooks —
 which is a thin layer over the CLI and depends on it.

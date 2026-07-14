@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { cmdLs, cmdRun, cmdSet, type Io } from "./commands.js";
 import { cmdImport } from "./import.js";
+import { cmdExport } from "./export.js";
 import { cmdPull } from "./pull.js";
+import { cmdResolve } from "./resolve-cmd.js";
 import { presenceAuthorize } from "./localauth.js";
 import { cmdCompleteList, cmdCompletion } from "./completion.js";
 import { cmdInstall } from "./install.js";
@@ -9,9 +11,10 @@ import { cmdHelp } from "./help.js";
 import { cmdInit, cmdAdmit, cmdStatus, cmdSecure } from "./project.js";
 import { cmdProtect } from "./protect.js";
 import { cmdLock } from "./lock.js";
+import { cmdAccept, cmdIdentity, cmdReceive, cmdShare } from "./share.js";
 
 const USAGE =
-  "usage: lockit <init|set|admit|status|secure|protect|lock|ls|run|import|pull|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
+  "usage: lockit <init|set|admit|status|secure|protect|lock|identity|share|accept|receive|ls|run|import|export|pull|resolve|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
 
 /** Read all of stdin to a string. Only `set` needs the value, so we read lazily. */
 async function readStdin(): Promise<string> {
@@ -56,6 +59,22 @@ async function main(): Promise<number> {
     const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
     return await cmdLock(io);
   }
+  if (command === "identity") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
+    return await cmdIdentity(io);
+  }
+  if (command === "share") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
+    return await cmdShare(io);
+  }
+  if (command === "accept") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
+    return await cmdAccept(io);
+  }
+  if (command === "receive") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
+    return await cmdReceive(io);
+  }
   if (command === "admit") {
     const io: Io = {
       argv,
@@ -91,6 +110,10 @@ async function main(): Promise<number> {
     const io: Io = { argv, stdin: "", env: process.env, out, err };
     return await cmdImport(io);
   }
+  if (command === "export") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err };
+    return await cmdExport(io);
+  }
   if (command === "pull") {
     const io: Io = {
       argv,
@@ -102,6 +125,18 @@ async function main(): Promise<number> {
       authorize: presenceAuthorize,
     };
     return await cmdPull(io);
+  }
+  if (command === "resolve") {
+    const io: Io = {
+      argv,
+      stdin: "",
+      env: process.env,
+      out,
+      err,
+      cwd: process.cwd(),
+      authorize: presenceAuthorize,
+    };
+    return await cmdResolve(io);
   }
   if (command === "install") {
     const io: Io = { argv, stdin: "", env: process.env, out, err };

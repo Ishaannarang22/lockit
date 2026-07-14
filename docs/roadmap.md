@@ -1,11 +1,11 @@
 # Roadmap
 
-This document describes the build order for `kv`, an open-source, local-first,
+This document describes the build order for `lockit`, an open-source, local-first,
 AI-agent-safe developer secrets manager. It explains what each phase delivers,
 the dependencies between phases, and the implementation philosophy that governs
 how every phase is built.
 
-`kv` is a self-hostable, local-first tool. The CLI works entirely on your own
+`lockit` is a self-hostable, local-first tool. The CLI works entirely on your own
 machine with no account and no third-party service. An optional, self-hosted
 server lets you sync and share secrets end-to-end across your own devices and
 with a single team. Everything is encrypted client-side; the server only ever
@@ -39,7 +39,7 @@ important constraint on how the project is built.
 - **Heaviest coverage on `crypto` and `core`.** These two packages are
   security-critical and receive the most thorough testing, including:
   - crypto round-trips (seal then open, wrap then unwrap)
-  - injection isolation (`kv run` writes nothing to disk; secrets live only in
+  - injection isolation (`lockit run` writes nothing to disk; secrets live only in
     memory for the child process lifetime)
   - output masking (secret values masked in child `stdout`/`stderr`)
   - tamper detection (recipient-set and payload tampering is detectable)
@@ -60,7 +60,7 @@ exact sequence of small increments within each phase.
 | Phase | Theme | Headline deliverable |
 |-------|-------|----------------------|
 | **P0** | Foundation | Monorepo scaffold, this documentation set, governance files |
-| **P1** | The daily driver | `crypto` + `core` + `cli`: local store, Sets + Slots, sandbox, admission, `kv run` |
+| **P1** | The daily driver | `crypto` + `core` + `cli`: local store, Sets + Slots, sandbox, admission, `lockit run` |
 | **P2** | Agent integration | The Claude Code plugin: skill + hooks for agent-safe reuse |
 | **P3** | Identity & sharing crypto | Device enrollment and shareable end-to-end encrypted artifacts |
 | **P4** | Optional team server | Self-hosted sync/sharing relay, Key Transparency, OPAQUE login |
@@ -78,7 +78,7 @@ of this version — see [Account recovery is future work](#account-recovery-is-f
   [`architecture.md`](./architecture.md):
   - `packages/crypto` — the cryptographic trust root (pure, no I/O, independently auditable)
   - `packages/core` — vault, store, and auth/admission gating
-  - `packages/cli` — the `kv` binary
+  - `packages/cli` — the `lockit` binary
   - `packages/server` — the optional self-hosted sync/sharing server (scaffold only at this stage)
   - `plugin/` — the Claude Code plugin (scaffold only at this stage)
   - `docs/` — documentation
@@ -127,11 +127,11 @@ server needed**.
   with a passphrase fallback). Auth happens once at admission; batches show all
   keys in one confirmation and a single auth admits the whole batch. See
   [`security.md`](./threat-model.md).
-- **`kv run` injection (env and file types)** — decrypts needed secrets in
+- **`lockit run` injection (env and file types)** — decrypts needed secrets in
   memory only, spawns the child with env vars set for its lifetime, masks secret
   values in child output, writes nothing to disk, and shreds on exit.
   `type=file` secrets materialize to a `0600` temp file on tmpfs, set the path
-  env var, and shred it. `kv run --dry-run` prints env-var **names** (values
+  env var, and shred it. `lockit run --dry-run` prints env-var **names** (values
   masked) and flags duplicate inject names, unfilled open slots, and ambiguous
   resolution.
 - **Per-environment support** — an optional secondary `dev`/`staging`/`prod`
@@ -146,7 +146,7 @@ server needed**.
 **Exit criteria**
 
 - A developer can set a key once, declare slots in a project vault, admit keys
-  through the human-gated flow, and run a child process with `kv run` — entirely
+  through the human-gated flow, and run a child process with `lockit run` — entirely
   locally. The sandbox, masking, and dry-run verification properties are covered
   by tests.
 
@@ -157,7 +157,7 @@ server needed**.
 **Delivers**
 
 - The Claude Code plugin in `plugin/`: a **skill** plus **hooks**.
-  - The skill teaches agent-safe `kv` usage — orchestrate with slugs, schemas,
+  - The skill teaches agent-safe `lockit` usage — orchestrate with slugs, schemas,
     field names, and `hasValue` booleans; never request or surface a value.
   - Hooks add guardrails, for example warning if a raw secret is about to be
     written into a file or command (an egress warning).
@@ -167,7 +167,7 @@ server needed**.
 
 **Dependencies**
 
-- Depends on **P1**. The plugin depends on the `kv` CLI — security lives in the
+- Depends on **P1**. The plugin depends on the `lockit` CLI — security lives in the
   CLI, and the plugin is convenience over it.
 
 **Notes**
@@ -264,7 +264,7 @@ any server exists, so the artifacts work over any channel.
 ```
 P0  (foundation)
  └─> P1  (crypto + core + cli — the local daily driver)
-      ├─> P2  (Claude Code plugin — depends on the kv CLI)
+      ├─> P2  (Claude Code plugin — depends on the lockit CLI)
       └─> P3  (identity + end-to-end sharing crypto)
            └─> P4  (optional self-hosted team server)
 ```

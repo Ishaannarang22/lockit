@@ -1,7 +1,7 @@
 # OrgMesh: Cryptography & Security Design
 
 This document specifies **OrgMesh**, the cryptographic design that underpins
-`kv`. It is precise enough to implement against. It describes the trust model,
+`lockit`. It is precise enough to implement against. It describes the trust model,
 the primitives and why each was chosen, the full key ladder, the on-disk/on-wire
 envelope format, exactly what an optional self-hosted server stores and never
 stores, the end-to-end flows (enroll, multi-device, share, team-join, rotate,
@@ -28,7 +28,7 @@ docs in this directory.
    chooses to run [`packages/server`](../packages/server), it is a
    store-and-relay for ciphertext, public keys, and never-unwrapped wrapped key
    material. **The server operator can never decrypt.** There is **no operator
-   master key** and no backdoor. `kv` needs no account and no server to be used
+   master key** and no backdoor. `lockit` needs no account and no server to be used
    locally; the server only enables sync and sharing across devices and
    teammates.
 

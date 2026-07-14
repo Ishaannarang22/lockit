@@ -1,0 +1,39 @@
+{
+  "name": "@lockit/server",
+  "version": "0.1.2",
+  "description": "Ciphertext-only local relay for lockit end-to-end shares.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "lockit-relay": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.d.ts",
+    "!dist/**/*.test.js",
+    "!dist/**/*.test.js.map"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@lockit/crypto": "workspace:*",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
+  }
+}

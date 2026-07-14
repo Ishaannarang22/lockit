@@ -2,7 +2,7 @@
 
 **Status:** Blueprint for just-in-time TDD implementation of P4 (not yet built).
 
-**Scope:** Phase 4 delivers the project-world sandbox, human-gated admission flow with pluggable AuthProvider, the `kv run` in-memory injection engine with masking and file materialization, the audit log, the unlock/keychain cache model, and the agent-safe listing surface.
+**Scope:** Phase 4 delivers the project-world sandbox, human-gated admission flow with pluggable AuthProvider, the `lockit run` in-memory injection engine with masking and file materialization, the audit log, the unlock/keychain cache model, and the agent-safe listing surface.
 
 **Depends on:** P0 (crypto at-rest), P1 (sealed envelope, key wrap), P3 (store, vault model, strict resolver).
 
@@ -20,8 +20,8 @@
 10. Audit entries recorded; all value-free (slugs/metadata only).
 11. Agent-safe listing never leaks a value; projection is slug/schema/fieldKeys/tags/hasValue/admitted only.
 12. Unlock cache: passphrase once, then Touch ID per-session (smooth), or per-use for agent-initiated (fingerprint every time).
-13. Auto-lock on sleep, idle timeout, or explicit `kv lock`.
-14. Off-device fallback: SSH passphrase prompt, CI `KV_PASSPHRASE` env var (deliberately weaker).
+13. Auto-lock on sleep, idle timeout, or explicit `lockit lock`.
+14. Off-device fallback: SSH passphrase prompt, CI `LOCKIT_PASSPHRASE` env var (deliberately weaker).
 
 ---
 
@@ -31,11 +31,11 @@
 
 | Feature         | Behavior to test                                      | Input / command                                                | Expected output                                   | Exit code | Test layer |
 | --------------- | ----------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------- | --------- | ---------- |
-| **Persistence** | Loads admitted slugs from `.kv/admitted.json` on init | `ProjectWorld.load(kvHome)` on new store                       | Empty Set, no error                               | N/A       | unit       |
+| **Persistence** | Loads admitted slugs from `.lockit/admitted.json` on init | `ProjectWorld.load(kvHome)` on new store                       | Empty Set, no error                               | N/A       | unit       |
 | **Persistence** | Saves new admitted slugs to gitignored state file     | `projectWorld.admit(['openai/dev'])`, then load in new process | Same admitted set in new process                  | N/A       | unit       |
-| **Persistence** | Reads from empty state returns empty set              | `.kv/admitted.json` missing                                    | `admitted.size === 0`                             | N/A       | unit       |
+| **Persistence** | Reads from empty state returns empty set              | `.lockit/admitted.json` missing                                    | `admitted.size === 0`                             | N/A       | unit       |
 | **Persistence** | Persists across multiple process invocations          | `admit()` in P1, load in P2                                    | P2 sees same set as P1 wrote                      | N/A       | e2e        |
-| **Persistence** | File created in correct directory                     | `ProjectWorld.load(kvHome)` with custom `$KV_HOME`             | `.kv/admitted.json` at `${KV_HOME}/admitted.json` | N/A       | unit       |
+| **Persistence** | File created in correct directory                     | `ProjectWorld.load(kvHome)` with custom `$LOCKIT_HOME`             | `.lockit/admitted.json` at `${LOCKIT_HOME}/admitted.json` | N/A       | unit       |
 
 ### Feature: Project-world membership query
 
@@ -53,7 +53,7 @@
 | **Admit** | Adds single slug to admitted set      | `projectWorld.admit(['openai/dev'])`                                                          | `has('openai/dev')` returns true             | N/A       | unit       |
 | **Admit** | Adds multiple slugs atomically        | `projectWorld.admit(['openai/dev', 'supabase/prod', 'gcp/service-account'])`                  | All three present in set, one disk write     | N/A       | unit       |
 | **Admit** | No duplicate if slug already admitted | After first `admit(['openai/dev'])`, call again with same slug                                | Set size = 1 (not 2)                         | N/A       | unit       |
-| **Admit** | Persists to disk synchronously        | Call `admit()`, immediately read file on disk                                                 | Admitted slug present in `.kv/admitted.json` | N/A       | unit       |
+| **Admit** | Persists to disk synchronously        | Call `admit()`, immediately read file on disk                                                 | Admitted slug present in `.lockit/admitted.json` | N/A       | unit       |
 | **Admit** | Rejects invalid slug format           | `projectWorld.admit(['INVALID_UPPERCASE', 'no spaces', 'bad/slug/with/slash/start//double'])` | Throw `InvalidSlug` error, no admission      | N/A       | unit       |
 
 ---
@@ -106,7 +106,7 @@
 | **Resolution** | Intersects resolved secrets against project-world admitted set | Resolver returns 'openai/dev'; admitted = ['supabase/prod']                   | Error: slug not admitted                                                          | N/A       | unit       |
 | **Resolution** | Rejects if resolved secret slug not in admitted set            | Slot resolves to 'openai/dev', not in projectWorld                            | Hard error before decryption                                                      | 1         | unit       |
 | **Resolution** | Decrypts only needed secrets in memory                         | Request 2 secrets from store with 5 total                                     | Only decrypt 2; others not touched; plaintext never on disk                       | N/A       | unit       |
-| **Resolution** | Plaintext never written to disk during resolution              | Inject run completes, inspect /tmp and `.kv/`                                 | No plaintext files; only encrypted store.json and materialized 0600 file (if any) | N/A       | e2e        |
+| **Resolution** | Plaintext never written to disk during resolution              | Inject run completes, inspect /tmp and `.lockit/`                                 | No plaintext files; only encrypted store.json and materialized 0600 file (if any) | N/A       | e2e        |
 
 ### Feature: Injection engine env-var mapping
 
@@ -115,7 +115,7 @@
 | **Mapping** | Maps env-type fields to environment variables       | Secret with OPENAI_API_KEY (env-type), AZURE_TENANT (env-type) | Child process has env vars set                           | N/A       | unit       |
 | **Mapping** | Uses exact env-var names from inject map            | Vault slot with inject { OPENAI_API_KEY: 'MY_CUSTOM_NAME' }    | Child env has MY_CUSTOM_NAME, not OPENAI_API_KEY         | N/A       | unit       |
 | **Mapping** | Sets env vars for child process only (not parent)   | Parent process.env before inject, child echo inside run        | Child receives vars; parent.env unchanged                | N/A       | e2e        |
-| **Mapping** | Parent process.env remains unchanged                | `process.env.OPENAI_API_KEY` before and after kv run           | Before: undefined; After: still undefined (not polluted) | N/A       | e2e        |
+| **Mapping** | Parent process.env remains unchanged                | `process.env.OPENAI_API_KEY` before and after lockit run           | Before: undefined; After: still undefined (not polluted) | N/A       | e2e        |
 | **Mapping** | Child receives all mapped vars                      | Inject 3 env vars for child, child prints all                  | All 3 env vars present and correct                       | N/A       | e2e        |
 | **Mapping** | Multiple fields can map to same name via inject map | Inject map: { FIELD_A: 'ENV_NAME', FIELD_B: 'ENV_NAME' }       | Hard error: duplicate inject name (not silent overwrite) | N/A       | unit       |
 
@@ -150,10 +150,10 @@
 | --------------- | ------------------------------------------------------ | --------------------------------------------------------------- | ---------------------------------------------------------- | --------- | ---------- |
 | **Materialize** | Materializes file-type fields to tmpfs temp file       | Secret with SERVICE_ACCOUNT_JSON (file-type), inject into child | Temp file created on tmpfs (or OS temp dir)                | N/A       | e2e        |
 | **Materialize** | Temp file has 0600 permissions (owner read/write only) | After materialization, check file mode                          | `-rw-------` (0600)                                        | N/A       | e2e        |
-| **Materialize** | Env var points at file path (not contents)             | Child: `env \| grep SERVICE_ACCOUNT`, value is path not content | Env var is `/tmp/kv-XXXXX` or similar path                 | N/A       | e2e        |
+| **Materialize** | Env var points at file path (not contents)             | Child: `env \| grep SERVICE_ACCOUNT`, value is path not content | Env var is `/tmp/lockit-XXXXX` or similar path                 | N/A       | e2e        |
 | **Materialize** | Child process can read temp file during execution      | Child: `cat $SERVICE_ACCOUNT_FILE`                              | Child can open and read file; content matches secret value | N/A       | e2e        |
 | **Materialize** | Multiple file fields create separate temp files        | Inject 2 file-type secrets                                      | Two distinct temp files created; two env vars set          | N/A       | e2e        |
-| **Materialize** | Temp files are cleaned up after child exit             | Child exits, ls /tmp for kv-\* files                            | Temp file no longer exists                                 | N/A       | e2e        |
+| **Materialize** | Temp files are cleaned up after child exit             | Child exits, ls /tmp for lockit-\* files                            | Temp file no longer exists                                 | N/A       | e2e        |
 
 ### Feature: Injection engine file shred on exit
 
@@ -179,7 +179,7 @@
 | **Format** | Flags duplicate inject names as error     | Vault: two slots both inject MY_SECRET                          | Error message names MY_SECRET as duplicated                | 1         | unit       |
 | **Format** | Flags unfilled open slots as error        | Vault: open slot for 'database' schema, no store secret matches | Error message: "unfilled open slot: database"              | 1         | unit       |
 | **Format** | Flags ambiguous resolution as error       | Vault: open slot for 'database', 3 store secrets match          | Error lists 3 candidates with slug/schema/tags, value-free | 1         | unit       |
-| **Format** | Does not run the child command            | `kv run --dry-run my-secret -- echo test`                       | No child spawned; output is dry-run report only            | 0         | unit       |
+| **Format** | Does not run the child command            | `lockit run --dry-run my-secret -- echo test`                       | No child spawned; output is dry-run report only            | 0         | unit       |
 | **Format** | Does not decrypt any values               | Call dry-run, no passphrase/auth required                       | Succeeds without accessing keychain/passphrase             | 0         | unit       |
 | **Format** | No secret value appears in dry-run output | Scan full output for any secret substring                       | Zero plaintext secret bytes in output                      | 0         | e2e        |
 
@@ -199,7 +199,7 @@
 | **Detection** | Detects open slot with no matching secrets        | Vault: open slot schema='database', store has no 'database' secrets     | Error: "open slot unfilled: schema 'database'"                              | 1         | unit       |
 | **Detection** | Detects open slot with no local resolution choice | Vault: open slot, no cached choice in local.json, zero store candidates | Error mentions slot schema and how to fill                                  | 1         | unit       |
 | **Detection** | Reports schema of unfilled slot                   | Error message                                                           | Includes schema name (e.g., 'database')                                     | 1         | unit       |
-| **Detection** | Indicates how to fill (kv use, kv status, etc.)   | Error message                                                           | Suggests next step or command (e.g., "run 'kv use database supabase/prod'") | 1         | unit       |
+| **Detection** | Indicates how to fill (lockit use, lockit status, etc.)   | Error message                                                           | Suggests next step or command (e.g., "run 'lockit use database supabase/prod'") | 1         | unit       |
 
 ### Feature: Dry-run ambiguous resolution detection
 
@@ -208,7 +208,7 @@
 | **Detection** | Detects when open slot matches N>1 secrets     | Vault: open slot schema='supabase', store has supabase/dev and supabase/prod | Error: "ambiguous: schema 'supabase'"                                                   | 1         | unit       |
 | **Detection** | Lists matching secrets with slug, schema, tags | Error output                                                                 | Shows: "1. supabase/dev [supabase] tags: dev", "2. supabase/prod [supabase] tags: prod" | 1         | unit       |
 | **Detection** | Value-free chooser (no values shown)           | Candidate list in error                                                      | Lists slug, schema, tags only; zero field values                                        | 1         | unit       |
-| **Detection** | Suggests how to disambiguate                   | Error message                                                                | Recommends: "run 'kv use supabase <slug>' to choose"                                    | 1         | unit       |
+| **Detection** | Suggests how to disambiguate                   | Error message                                                                | Recommends: "run 'lockit use supabase <slug>' to choose"                                    | 1         | unit       |
 
 ---
 
@@ -218,7 +218,7 @@
 
 | Feature    | Behavior to test                            | Input / command                                                                      | Expected output                                  | Exit code | Test layer |
 | ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------ | --------- | ---------- |
-| **Append** | Appends admission entry to audit log        | Call `auditLog.record('admit', projectId, ['openai/dev'], 'touchid')`                | Entry written to `.kv/audit.log`                 | N/A       | unit       |
+| **Append** | Appends admission entry to audit log        | Call `auditLog.record('admit', projectId, ['openai/dev'], 'touchid')`                | Entry written to `.lockit/audit.log`                 | N/A       | unit       |
 | **Append** | Appends use entry to audit log              | Call `auditLog.record('use', projectId, ['openai/dev', 'supabase/prod'], 'touchid')` | Entry written with action='use'                  | N/A       | unit       |
 | **Append** | Appends refused entry to audit log          | Call `auditLog.record('refused', projectId, ['openai/dev'], undefined)`              | Entry written with action='refused'              | N/A       | unit       |
 | **Append** | Entries are timestamped                     | Read audit log entry                                                                 | Entry has ISO 8601 timestamp field               | N/A       | unit       |
@@ -286,8 +286,8 @@
 | Feature       | Behavior to test                              | Input / command                                                                   | Expected output                                                                              | Exit code | Test layer |
 | ------------- | --------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------- | ---------- |
 | **Isolation** | Resolved value present in spawned child env   | Child: `echo $OPENAI_API_KEY`                                                     | Child output shows (or masked) value                                                         | N/A       | e2e        |
-| **Isolation** | Resolved value absent from parent process.env | Parent inspects process.env.OPENAI_API_KEY before and after kv run                | Before run: undefined; After run: still undefined                                            | N/A       | e2e        |
-| **Isolation** | Resolved value absent from on-disk artifacts  | kv run completes, scan /tmp, ~/.kv, current directory                             | No unencrypted file containing value (except 0600 materialized file during child's lifetime) | N/A       | e2e        |
+| **Isolation** | Resolved value absent from parent process.env | Parent inspects process.env.OPENAI_API_KEY before and after lockit run                | Before run: undefined; After run: still undefined                                            | N/A       | e2e        |
+| **Isolation** | Resolved value absent from on-disk artifacts  | lockit run completes, scan /tmp, ~/.lockit, current directory                             | No unencrypted file containing value (except 0600 materialized file during child's lifetime) | N/A       | e2e        |
 | **Isolation** | Child can read value via process.env.VAR_NAME | Child: `node -e "console.log(process.env.SECRET)"`                                | Child prints value (or masked output shows it was received)                                  | N/A       | e2e        |
 | **Isolation** | Parent cannot read value after child spawns   | Parent: `setTimeout(() => console.log(process.env.SECRET), 100)` during child run | Parent env remains empty                                                                     | N/A       | e2e        |
 
@@ -302,15 +302,15 @@
 | **Cache** | On first unlock, passphrase derives AK                    | User supplies passphrase at prompt           | AK (Account Key) derived via Argon2id                            | N/A       | unit       |
 | **Cache** | AK unwraps DEK from wrapped envelope                      | Wrapped DEK in store, unlock with passphrase | DEK successfully unwrapped and matches stored payload key        | N/A       | unit       |
 | **Cache** | DEK is cached in OS keychain with Touch ID access policy  | After unwrap, verify keychain entry created  | Entry exists in keychain, accessible via Touch ID                | N/A       | unit       |
-| **Cache** | Subsequent unlocks use Touch ID to release DEK from cache | Second `kv run` within 15-min window         | Touch ID prompt (no passphrase re-entry)                         | N/A       | e2e        |
-| **Cache** | Passphrase is not re-prompted on subsequent unlocks       | Run kv 3 times within session                | Passphrase prompt appears once; next 2 use cached DEK + Touch ID | N/A       | e2e        |
+| **Cache** | Subsequent unlocks use Touch ID to release DEK from cache | Second `lockit run` within 15-min window         | Touch ID prompt (no passphrase re-entry)                         | N/A       | e2e        |
+| **Cache** | Passphrase is not re-prompted on subsequent unlocks       | Run lockit 3 times within session                | Passphrase prompt appears once; next 2 use cached DEK + Touch ID | N/A       | e2e        |
 
 ### Feature: Auto-lock on system sleep
 
 | Feature   | Behavior to test                                       | Input / command                                  | Expected output                    | Exit code | Test layer |
 | --------- | ------------------------------------------------------ | ------------------------------------------------ | ---------------------------------- | --------- | ---------- |
 | **Sleep** | System sleep triggers DEK eviction from keychain cache | Computer sleeps, then wakes                      | Cached DEK removed from keychain   | N/A       | e2e        |
-| **Sleep** | After wake, next kv access requires passphrase again   | After sleep, run `kv ls`                         | Passphrase prompt re-appears       | N/A       | e2e        |
+| **Sleep** | After wake, next lockit access requires passphrase again   | After sleep, run `lockit ls`                         | Passphrase prompt re-appears       | N/A       | e2e        |
 | **Sleep** | OS sleep notification is detected and handled          | Register listener for sleep event, trigger sleep | Listener fires, eviction completed | N/A       | unit       |
 
 ### Feature: Auto-lock on idle timeout
@@ -318,25 +318,25 @@
 | Feature  | Behavior to test                                     | Input / command                                            | Expected output                                      | Exit code | Test layer |
 | -------- | ---------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------- | --------- | ---------- |
 | **Idle** | Default idle timeout is 15 minutes                   | No config set, check default constant                      | DEFAULT*IDLE_TIMEOUT_MS === 15 * 60 \_ 1000 (900000) | N/A       | unit       |
-| **Idle** | After no kv access for 15 min, cached DEK is evicted | Last access at T=0, check at T=15m+1s                      | Keychain entry removed                               | N/A       | unit       |
-| **Idle** | Next kv access requires passphrase again             | After 15-min idle, run `kv ls`                             | Passphrase prompt re-appears                         | N/A       | e2e        |
-| **Idle** | Timeout is configurable                              | Set `KV_IDLE_TIMEOUT_SEC=300` (5 min), wait 5:01           | DEK evicted at 5-min mark, next run prompts          | N/A       | e2e        |
-| **Idle** | Timer resets on each kv access                       | Access at T=0, idle 7:30, access at T=7:30, idle 7:30 more | Not evicted until T=15m from second access           | N/A       | e2e        |
+| **Idle** | After no lockit access for 15 min, cached DEK is evicted | Last access at T=0, check at T=15m+1s                      | Keychain entry removed                               | N/A       | unit       |
+| **Idle** | Next lockit access requires passphrase again             | After 15-min idle, run `lockit ls`                             | Passphrase prompt re-appears                         | N/A       | e2e        |
+| **Idle** | Timeout is configurable                              | Set `LOCKIT_IDLE_TIMEOUT_SEC=300` (5 min), wait 5:01           | DEK evicted at 5-min mark, next run prompts          | N/A       | e2e        |
+| **Idle** | Timer resets on each lockit access                       | Access at T=0, idle 7:30, access at T=7:30, idle 7:30 more | Not evicted until T=15m from second access           | N/A       | e2e        |
 
-### Feature: Explicit lock command (kv lock)
+### Feature: Explicit lock command (lockit lock)
 
 | Feature  | Behavior to test                                        | Input / command                    | Expected output                                              | Exit code | Test layer |
 | -------- | ------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------ | --------- | ---------- |
-| **Lock** | `kv lock` command evicts cached DEK immediately         | Run `kv lock`                      | Keychain entry removed; next `kv run` prompts for passphrase | 0         | e2e        |
-| **Lock** | Immediately after lock, next access requires passphrase | Lock, then immediately run `kv ls` | Passphrase prompt appears                                    | N/A       | e2e        |
-| **Lock** | Succeeds silently if no DEK is cached                   | Run `kv lock` when no cache exists | No error; exit 0                                             | 0         | e2e        |
+| **Lock** | `lockit lock` command evicts cached DEK immediately         | Run `lockit lock`                      | Keychain entry removed; next `lockit run` prompts for passphrase | 0         | e2e        |
+| **Lock** | Immediately after lock, next access requires passphrase | Lock, then immediately run `lockit ls` | Passphrase prompt appears                                    | N/A       | e2e        |
+| **Lock** | Succeeds silently if no DEK is cached                   | Run `lockit lock` when no cache exists | No error; exit 0                                             | 0         | e2e        |
 
-### Feature: Per-session access policy (user's own kv run)
+### Feature: Per-session access policy (user's own lockit run)
 
 | Feature         | Behavior to test                                          | Input / command                                             | Expected output                                                                | Exit code | Test layer |
 | --------------- | --------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------ | --------- | ---------- |
-| **Per-Session** | Touch ID released once per unlock window for personal use | Unlock with passphrase, run `kv run` 3 times within session | Touch ID prompt only on first unlock; next 2 runs use cached DEK (no Touch ID) | N/A       | e2e        |
-| **Per-Session** | User does not re-auth on each kv run (smooth daily use)   | Daily workflow: passphrase once, then 10+ `kv run` commands | Passphrase prompted once at start of day; no re-auth needed                    | N/A       | e2e        |
+| **Per-Session** | Touch ID released once per unlock window for personal use | Unlock with passphrase, run `lockit run` 3 times within session | Touch ID prompt only on first unlock; next 2 runs use cached DEK (no Touch ID) | N/A       | e2e        |
+| **Per-Session** | User does not re-auth on each lockit run (smooth daily use)   | Daily workflow: passphrase once, then 10+ `lockit run` commands | Passphrase prompted once at start of day; no re-auth needed                    | N/A       | e2e        |
 | **Per-Session** | Access policy is per-session                              | Set access policy to 'per-session' in keychain              | Release count allows multiple reads within session window                      | N/A       | unit       |
 | **Per-Session** | Policy dial is separate from per-use policy               | Inspect keychain access policy field                        | Distinct from per-use policy structure                                         | N/A       | unit       |
 
@@ -354,19 +354,19 @@
 
 | Feature | Behavior to test                                                     | Input / command                                                    | Expected output                                 | Exit code | Test layer |
 | ------- | -------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------- | --------- | ---------- |
-| **SSH** | Over SSH where keychain access is unavailable, prompt for passphrase | SSH into remote, run `kv run`                                      | Terminal prompt for passphrase (not Touch ID)   | N/A       | e2e        |
+| **SSH** | Over SSH where keychain access is unavailable, prompt for passphrase | SSH into remote, run `lockit run`                                      | Terminal prompt for passphrase (not Touch ID)   | N/A       | e2e        |
 | **SSH** | Passphrase is typed at terminal (not stored)                         | Provide passphrase over SSH session, inspect memory/keychain after | Passphrase not persisted; not added to keychain | N/A       | e2e        |
 | **SSH** | Derives AK, unwraps DEK, proceeds with injection                     | After passphrase entered, injection proceeds                       | Secret injected into child command              | N/A       | e2e        |
-| **SSH** | No keychain caching on SSH sessions                                  | Run `kv run` twice over SSH with same session                      | Passphrase prompted both times (no cache)       | N/A       | e2e        |
+| **SSH** | No keychain caching on SSH sessions                                  | Run `lockit run` twice over SSH with same session                      | Passphrase prompted both times (no cache)       | N/A       | e2e        |
 
-### Feature: CI / KV_PASSPHRASE environment variable (opt-in)
+### Feature: CI / LOCKIT_PASSPHRASE environment variable (opt-in)
 
 | Feature | Behavior to test                           | Input / command                                                    | Expected output                                                   | Exit code | Test layer |
 | ------- | ------------------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------- | --------- | ---------- |
-| **CI**  | CI runner can supply KV_PASSPHRASE env var | `export KV_PASSPHRASE=mypass123; kv run openai -- node script.js`  | Injection proceeds without prompting                              | 0         | e2e        |
-| **CI**  | Passphrase is read from env (not prompted) | Set KV_PASSPHRASE, run kv, check that no passphrase prompt appears | No interactive prompt                                             | N/A       | e2e        |
+| **CI**  | CI runner can supply LOCKIT_PASSPHRASE env var | `export LOCKIT_PASSPHRASE=mypass123; lockit run openai -- node script.js`  | Injection proceeds without prompting                              | 0         | e2e        |
+| **CI**  | Passphrase is read from env (not prompted) | Set LOCKIT_PASSPHRASE, run lockit, check that no passphrase prompt appears | No interactive prompt                                             | N/A       | e2e        |
 | **CI**  | Injection proceeds without keychain        | CI runner without keychain access                                  | DEK unwrapped from passphrase; injection succeeds                 | 0         | e2e        |
-| **CI**  | Documented as deliberately-weaker mode     | README or docs mention KV_PASSPHRASE                               | Documentation states that CI mode is weaker than keychain cache   | N/A       | doc        |
+| **CI**  | Documented as deliberately-weaker mode     | README or docs mention LOCKIT_PASSPHRASE                               | Documentation states that CI mode is weaker than keychain cache   | N/A       | doc        |
 | **CI**  | Per-secret injection preferred long-term   | Documentation or comments                                          | Notes that fine-grained per-secret CI tokens are future direction | N/A       | doc        |
 
 ### Feature: Passphrase-to-keychain cache wrapper (wrapKey / unwrapKey)
@@ -423,11 +423,11 @@
 
 | Feature       | Behavior to test                                    | Input / command                                                | Expected output                                                               | Exit code | Test layer |
 | ------------- | --------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------- | ---------- |
-| **Invariant** | Plaintext value never written to disk during kv run | Full `kv run` with file I/O mocking, inspect all write() calls | No unencrypted secret bytes in any write                                      | N/A       | unit       |
+| **Invariant** | Plaintext value never written to disk during lockit run | Full `lockit run` with file I/O mocking, inspect all write() calls | No unencrypted secret bytes in any write                                      | N/A       | unit       |
 | **Invariant** | Only materialized 0600 file contains plaintext      | Exclude materialized temp file, scan rest of disk writes       | No other plaintext found                                                      | N/A       | unit       |
 | **Invariant** | Env vars exist only in child process memory         | Parent and global process.env inspected                        | Secrets not in process.env; only in child's spawn env                         | N/A       | unit       |
-| **Invariant** | Parent process env not mutated                      | process.env before and after `kv run`                          | Identical (no pollution)                                                      | N/A       | e2e        |
-| **Invariant** | No temporary unencrypted files created              | Scan /tmp and ~/.kv for non-encrypted files during run         | No .txt, .tmp, or other plaintext files (except 0600 materialized during run) | N/A       | e2e        |
+| **Invariant** | Parent process env not mutated                      | process.env before and after `lockit run`                          | Identical (no pollution)                                                      | N/A       | e2e        |
+| **Invariant** | No temporary unencrypted files created              | Scan /tmp and ~/.lockit for non-encrypted files during run         | No .txt, .tmp, or other plaintext files (except 0600 materialized during run) | N/A       | e2e        |
 
 ### Invariant: Unique inject name enforced at run time
 
@@ -435,7 +435,7 @@
 | ------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- | --------- | ---------- |
 | **Invariant** | Duplicate env-var names in vault raise hard error at injection time | Vault: slot1 injects FIELD_A→MY_VAR, slot2 injects FIELD_B→MY_VAR | Error: "duplicate inject name: MY_VAR"               | 1         | unit       |
 | **Invariant** | Error prevents silent shadowing                                     | Run with duplicate inject config                                  | Fails with error, not silently using last-write-wins | 1         | unit       |
-| **Invariant** | Error is also caught at --dry-run                                   | `kv run --dry-run` with duplicate inject                          | Error caught before any execution                    | 1         | unit       |
+| **Invariant** | Error is also caught at --dry-run                                   | `lockit run --dry-run` with duplicate inject                          | Error caught before any execution                    | 1         | unit       |
 | **Invariant** | Error lists which env-var name is duplicated                        | Error message                                                     | Names the env var (e.g., "MY_VAR")                   | 1         | unit       |
 
 ---

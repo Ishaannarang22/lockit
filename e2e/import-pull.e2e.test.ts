@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runLockit, withSandbox } from "./helpers.js";
 
 describe("import + pull (e2e, real binary)", () => {
-  it("imports a .env, lists vars value-free, refuses pull without a tty, and the bypass writes the real value", async () => {
+  it("imports a .env, lists vars value-free, and refuses pull without a human gate", async () => {
     await withSandbox(async (home) => {
       const proj = mkdtempSync(join(tmpdir(), "lockit-proj-"));
       try {
@@ -32,14 +32,12 @@ describe("import + pull (e2e, real binary)", () => {
         expect(existsSync(out)).toBe(false);
         expect(denied.stderr.toLowerCase()).toContain("authorization");
 
-        // Documented headless bypass writes the real value; lockit's stdout stays value-free.
-        const ok = await runLockit(home, ["pull", "API_KEY", "--out", out], {
+        const yes = await runLockit(home, ["pull", "API_KEY", "--out", out, "--yes"], {
           passphrase: "pw",
-          env: { LOCKIT_PULL_YES: "1" },
         });
-        expect(ok.code).toBe(0);
-        expect(readFileSync(out, "utf8")).toContain("API_KEY=sk-live-123");
-        expect(ok.stdout).not.toContain("sk-live-123");
+        expect(yes.code).toBe(1);
+        expect(existsSync(out)).toBe(false);
+        expect(yes.stderr).toContain("--yes");
       } finally {
         rmSync(proj, { recursive: true, force: true });
       }

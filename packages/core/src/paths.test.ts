@@ -12,8 +12,8 @@ afterEach(() => {
 
 describe("lockitHome", () => {
   it("returns $LOCKIT_HOME when set", () => {
-    process.env.LOCKIT_HOME = "/tmp/kv-test-home";
-    expect(lockitHome()).toBe("/tmp/kv-test-home");
+    process.env.LOCKIT_HOME = "/tmp/lockit-test-home";
+    expect(lockitHome()).toBe("/tmp/lockit-test-home");
   });
 
   it("returns ~/.lockit when $LOCKIT_HOME is not set", () => {
@@ -29,15 +29,15 @@ describe("lockitHome", () => {
   });
 
   it("honors an absolute override path verbatim", () => {
-    process.env.LOCKIT_HOME = "/opt/secrets/kv";
-    expect(lockitHome()).toBe("/opt/secrets/kv");
+    process.env.LOCKIT_HOME = "/opt/secrets/lockit";
+    expect(lockitHome()).toBe("/opt/secrets/lockit");
   });
 });
 
 describe("storePath", () => {
   it("joins store.json onto $LOCKIT_HOME when set", () => {
-    process.env.LOCKIT_HOME = "/tmp/kv-test-home";
-    expect(storePath()).toBe(join("/tmp/kv-test-home", "store.json"));
+    process.env.LOCKIT_HOME = "/tmp/lockit-test-home";
+    expect(storePath()).toBe(join("/tmp/lockit-test-home", "store.json"));
   });
 
   it("is ~/.lockit/store.json when $LOCKIT_HOME is not set", () => {
@@ -46,7 +46,7 @@ describe("storePath", () => {
   });
 
   it("always equals join(lockitHome(), 'store.json')", () => {
-    process.env.LOCKIT_HOME = "/var/data/kvhome";
+    process.env.LOCKIT_HOME = "/var/data/lockithome";
     expect(storePath()).toBe(join(lockitHome(), "store.json"));
   });
 

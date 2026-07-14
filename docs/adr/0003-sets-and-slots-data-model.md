@@ -41,7 +41,7 @@ convenience only and is **never committed**.
 for completeness checks and autocomplete) **plus** free strings for unknown
 providers.
 
-**Project vault** (committed, e.g. `./.kv/vault.json`) is **value-free**: a
+**Project vault** (committed, e.g. `./.lockit/vault.json`) is **value-free**: a
 list of **Slots** (requirements). A slot is
 `{ schema, bind: pinned|open, to: slug-or-null, inject: { fieldKey -> EXACT_ENV_VAR_NAME } }`.
 
@@ -50,7 +50,7 @@ list of **Slots** (requirements). A slot is
 - **open** means any secret of this schema that the developer supplies locally
   (per-developer or per-project backends).
 
-A local resolution cache (gitignored, e.g. `./.kv/local.json`) records how
+A local resolution cache (gitignored, e.g. `./.lockit/local.json`) records how
 **open** slots are filled on **this** machine.
 
 **One-value-many-names.** The `inject` map lets any field map to any env-var

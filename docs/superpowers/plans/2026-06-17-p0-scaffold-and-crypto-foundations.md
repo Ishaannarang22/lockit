@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Stand up the `key_manager` pnpm monorepo and build the `@kv/crypto` at-rest foundation — passphrase key derivation (Argon2id), authenticated encryption (XChaCha20-Poly1305), and a versioned sealed-blob format — fully test-driven.
+**Goal:** Stand up the `key_manager` pnpm monorepo and build the `@lockit/crypto` at-rest foundation — passphrase key derivation (Argon2id), authenticated encryption (XChaCha20-Poly1305), and a versioned sealed-blob format — fully test-driven.
 
 **Architecture:** A pnpm-workspace TypeScript monorepo. `packages/crypto` is a pure, I/O-free trust root. This plan implements only its *symmetric, at-rest* layer: derive a 32-byte key from a passphrase, seal/open bytes with AEAD, and serialize a tamper-evident sealed blob (the on-disk vault envelope). Asymmetric/envelope/HPKE sharing crypto is a later plan.
 
@@ -13,7 +13,7 @@
 2. crypto: asymmetric envelope (X25519/HPKE), Ed25519 signatures, key ladder
 3. core: encrypted store + Sets/Slots vault model
 4. core: project-world sandbox + human-gated admission + local auth
-5. cli (`kv`) commands
+5. cli (`lockit`) commands
 6. Claude plugin (skill + hooks)
 7. identity + end-to-end sharing crypto
 8. single-team server (sync/sharing, Key Transparency, OPAQUE)
@@ -22,7 +22,7 @@
 
 ---
 
-### Task 1: Monorepo scaffold + `@kv/crypto` skeleton
+### Task 1: Monorepo scaffold + `@lockit/crypto` skeleton
 
 **Files:**
 - Create: `package.json`
@@ -137,7 +137,7 @@ export default tseslint.config(
 
 ```json
 {
-  "name": "@kv/crypto",
+  "name": "@lockit/crypto",
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -172,7 +172,7 @@ export default tseslint.config(
 - [ ] **Step 10: Create `packages/crypto/src/index.ts`**
 
 ```ts
-export const CRYPTO_PACKAGE = "@kv/crypto";
+export const CRYPTO_PACKAGE = "@lockit/crypto";
 ```
 
 - [ ] **Step 11: Create `packages/crypto/src/smoke.test.ts`**
@@ -181,9 +181,9 @@ export const CRYPTO_PACKAGE = "@kv/crypto";
 import { describe, it, expect } from "vitest";
 import { CRYPTO_PACKAGE } from "./index.js";
 
-describe("@kv/crypto smoke", () => {
+describe("@lockit/crypto smoke", () => {
   it("exposes its package name", () => {
-    expect(CRYPTO_PACKAGE).toBe("@kv/crypto");
+    expect(CRYPTO_PACKAGE).toBe("@lockit/crypto");
   });
 });
 ```
@@ -219,7 +219,7 @@ Expected: resolves and writes `pnpm-lock.yaml`, no errors.
 - [ ] **Step 14: Run the smoke test to verify the toolchain works**
 
 Run: `pnpm test`
-Expected: PASS — 1 test passed (`@kv/crypto smoke`).
+Expected: PASS — 1 test passed (`@lockit/crypto smoke`).
 
 - [ ] **Step 15: Verify typecheck and build**
 
@@ -230,7 +230,7 @@ Expected: both succeed; `packages/crypto/dist/index.js` exists.
 
 ```bash
 git add -A
-git commit -m "chore: scaffold pnpm monorepo and @kv/crypto package"
+git commit -m "chore: scaffold pnpm monorepo and @lockit/crypto package"
 ```
 
 ---
@@ -715,7 +715,7 @@ Expected: PASS — all 4 tests pass.
 Replace the contents of `packages/crypto/src/index.ts` with:
 
 ```ts
-export const CRYPTO_PACKAGE = "@kv/crypto";
+export const CRYPTO_PACKAGE = "@lockit/crypto";
 
 export { aeadSeal, aeadOpen, randomBytes, KEY_BYTES, NONCE_BYTES } from "./aead.js";
 export type { SealedBytes } from "./aead.js";

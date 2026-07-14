@@ -4,7 +4,7 @@
 
 **Status:** PLANNED — this document describes tests authored just-in-time as features are implemented via TDD.
 
-**Overview:** This phase builds the asymmetric sharing trust root in `@kv/crypto`: keypair generation (X25519 and Ed25519), HKDF-based seed expansion, HPKE Auth-mode DEK wrapping to recipients, Ed25519 signing, and the age-style multi-recipient envelope. All tests are **unit tests** at the crypto layer; no I/O or store integration tested here.
+**Overview:** This phase builds the asymmetric sharing trust root in `@lockit/crypto`: keypair generation (X25519 and Ed25519), HKDF-based seed expansion, HPKE Auth-mode DEK wrapping to recipients, Ed25519 signing, and the age-style multi-recipient envelope. All tests are **unit tests** at the crypto layer; no I/O or store integration tested here.
 
 **Dependencies:** Plan #1 (P0) — specifically `aeadSeal`/`aeadOpen` (XChaCha20-Poly1305), `randomBytes`, and HKDF primitives.
 

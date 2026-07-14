@@ -36,7 +36,7 @@ describe("lockit e2e smoke (real binary in a sandbox)", () => {
       );
       expect(run.code).toBe(0);
       expect(run.stdout).not.toContain("MISSING"); // child saw the real value
-      expect(run.stdout).not.toContain(secret); // but kv masked it
+      expect(run.stdout).not.toContain(secret); // but lockit masked it
       expect(run.stdout).toContain("***");
     });
   });

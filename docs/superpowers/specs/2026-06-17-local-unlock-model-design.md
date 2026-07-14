@@ -9,7 +9,7 @@ The at-rest layer (P0) encrypts the global store with a key derived from a **mas
 (Argon2id → key → XChaCha20-Poly1305). But the plans never said _how the store gets unlocked
 day-to-day_: the key was "derived in client memory only," there is "no daemon," and Touch ID was
 described only as a **presence gate at admission** — never as something that releases a decryption
-key. Taken literally, that means a fresh `kv` process would need the passphrase retyped on every
+key. Taken literally, that means a fresh `lockit` process would need the passphrase retyped on every
 use. Users reasonably expect the 1Password experience: **passphrase once, then fingerprint.**
 
 This spec pins the unlock model and separates two things the plans conflated:
@@ -67,23 +67,23 @@ One mechanism, two policies set on the keychain item:
 
 The store "locks" by evicting the cached DEK from the keychain (and zeroing the in-memory copy as
 best the runtime allows). Triggers: system sleep, an idle timeout (default 15 min, configurable),
-and explicit `kv lock`. After lock, the next use needs the passphrase again.
+and explicit `lockit lock`. After lock, the next use needs the passphrase again.
 
 ## Layering — what's built now vs deferred
 
 | Piece                                                                                              | Layer                 | When                  |
 | -------------------------------------------------------------------------------------------------- | --------------------- | --------------------- |
-| `wrapKey` / `unwrapKey` (symmetric key wrap)                                                       | `@kv/crypto` (pure)   | **Now** (this change) |
-| DEK indirection + wrapped-DEK store envelope                                                       | `@kv/core` store      | P3                    |
-| Keychain cache (read/write/evict), auto-lock policy                                                | `@kv/core` + platform | P4                    |
+| `wrapKey` / `unwrapKey` (symmetric key wrap)                                                       | `@lockit/crypto` (pure)   | **Now** (this change) |
+| DEK indirection + wrapped-DEK store envelope                                                       | `@lockit/core` store      | P3                    |
+| Keychain cache (read/write/evict), auto-lock policy                                                | `@lockit/core` + platform | P4                    |
 | Touch ID / OS-password presence via macOS LocalAuthentication; per-use vs per-session access flags | `AuthProvider`        | P4                    |
-| Agent-initiated per-use prompt wired through admission/`kv run`                                    | `@kv/core` + `cli`    | P4 / P5               |
-| Passphrase prompt (SSH) + `KV_PASSPHRASE` (CI, opt-in) fallbacks                                   | `cli`                 | P5                    |
+| Agent-initiated per-use prompt wired through admission/`lockit run`                                    | `@lockit/core` + `cli`    | P4 / P5               |
+| Passphrase prompt (SSH) + `LOCKIT_PASSPHRASE` (CI, opt-in) fallbacks                                   | `cli`                 | P5                    |
 
 A _fully working_ fingerprint-unlock therefore lands with P3 + P4 + native macOS code. This spec
 builds the crypto foundation now and makes the rest build-ready.
 
-## Crypto additions to `@kv/crypto` (now)
+## Crypto additions to `@lockit/crypto` (now)
 
 Pure, I/O-free, AEAD-backed symmetric key wrap with domain separation:
 
@@ -110,8 +110,8 @@ cache are built from.
   value un-leakable afterward.
 - **The cache is only as strong as the Secure Enclave:** off-device (CI/SSH) there is no Enclave,
   so the only unlock is the passphrase, with the CI gradient noted above.
-- **Dedicated passphrase, not the OS account password:** the crypto root is a kv-owned passphrase.
-  A user may choose the same string as their macOS login, but kv never _derives from_ the OS
+- **Dedicated passphrase, not the OS account password:** the crypto root is a lockit-owned passphrase.
+  A user may choose the same string as their macOS login, but lockit never _derives from_ the OS
   password — so rotating the Mac password cannot orphan the vault.
 
 ## Open / future
