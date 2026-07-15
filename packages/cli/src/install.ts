@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Io } from "./commands.js";
 import { zshCompletionScript, bashCompletionScript } from "./completion.js";
-import { installSkill } from "./skill.js";
+import { installCodexSkill, installSkill } from "./skill.js";
 
 // Standard, already-in-$fpath / sourced completion dirs, most-preferred first.
 const ZSH_DIRS = ["/opt/homebrew/share/zsh/site-functions", "/usr/local/share/zsh/site-functions"];
@@ -116,14 +116,20 @@ export async function cmdInstall(io: Io): Promise<number> {
     if (added) io.out(`added completion path to ${target.rcFile}\n`);
   }
 
-  // Install the agent-safe Claude skill globally (unless --no-skill), so Claude
-  // knows how to use lockit in every repo. Harmless if you don't use Claude Code.
+  // Install the agent-safe skills globally (unless --no-skill), so Claude and
+  // Codex know how to use lockit in every repo. Harmless if you do not use one.
   if (!io.argv.includes("--no-skill")) {
     try {
       const skillPath = installSkill(home);
       io.out(`installed Claude skill   -> ${skillPath}\n`);
     } catch (e) {
       io.err(`could not install Claude skill: ${e instanceof Error ? e.message : String(e)}\n`);
+    }
+    try {
+      const skillPath = installCodexSkill(home);
+      io.out(`installed Codex skill    -> ${skillPath}\n`);
+    } catch (e) {
+      io.err(`could not install Codex skill: ${e instanceof Error ? e.message : String(e)}\n`);
     }
   }
 

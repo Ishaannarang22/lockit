@@ -7,7 +7,7 @@ import { join } from "node:path";
 const SKILL_MD = [
   "---",
   "name: lockit-agent-safe",
-  "description: Use lockit to discover, admit, and use developer secrets without ever seeing or printing a value. Use whenever you need API keys, .env values, database URLs, tokens, or any credential.",
+  "description: Use lockit to discover, admit, share, receive, and run with developer secrets without ever seeing or printing a value. Use whenever you need API keys, .env values, database URLs, tokens, encrypted secret sharing, or any credential.",
   "---",
   "",
   "# Using lockit safely",
@@ -36,6 +36,17 @@ const SKILL_MD = [
   "## Use the secrets",
   "- `lockit run -- <cmd>` — run a command with the project's admitted keys injected in memory and masked in output; you never see them. Works in both modes.",
   "",
+  "## Share secrets end-to-end encrypted",
+  "- `lockit identity [--out <file>]` — create or show this device's PUBLIC sharing identity. It is public key material only; private sharing keys stay sealed in LOCKIT_HOME.",
+  "- `lockit identity register <username> --relay <url>` — register this public identity on a relay. The relay stores public keys only.",
+  "- `lockit identity whois <username> --relay <url>` — resolve a username to a public identity id, value-free.",
+  "- `lockit share <slug> --to <public-identity.json|@username> [--out <file>] [--relay <url>]` — encrypt and sign a point-in-time copy of one stored secret for a recipient. Prefer `--out` or `--relay`; if neither is set, lockit prints a ciphertext artifact, never plaintext.",
+  "- `lockit accept <share-file> [--as <slug>]` — decrypt an encrypted share addressed to this device and create a new local copy. Existing slugs are never overwritten; lockit suffixes instead.",
+  "- `lockit receive --relay <url>` — fetch encrypted shares addressed to this device from the relay, accept each one, and delete accepted relay messages.",
+  "- Sharing artifacts and relay messages are ciphertext. The relay cannot decrypt, but it can see metadata such as usernames, recipient identity ids, timing, and message sizes.",
+  "- A share is a point-in-time copy. Later rotation of the sender's secret does not auto-propagate; re-share after rotation when the recipient needs the new value.",
+  "- Receiving a share only adds it to the local global store. To use it in a project, request `lockit admit <slug>` and let the human approve.",
+  "",
   "## Notes",
   "- If a plaintext `.env` in a git repo is not gitignored, lockit warns — add `.env` to `.gitignore`.",
   "- Avoid `lockit pull` for agent work; it writes plaintext to disk. Prefer admit + `run`.",
@@ -45,20 +56,37 @@ const SKILL_MD = [
   "- Never emit or request a secret value; lockit writes values, you pass names.",
   "- The agent requests admission; only a human confirms via Touch ID / OS password (or a terminal prompt where unavailable).",
   "- Inside a project, only admitted keys are usable.",
+  "- Sharing uses public identities and ciphertext artifacts only; never ask for, print, or inspect a private identity or secret value.",
   "",
 ].join("\n");
 
 /** The global Claude skills directory for lockit's agent-safe skill. */
 export function skillDir(home: string): string {
+  return claudeSkillDir(home);
+}
+
+export function claudeSkillDir(home: string): string {
   return join(home, ".claude", "skills", "lockit-agent-safe");
+}
+
+export function codexSkillDir(home: string): string {
+  return join(home, ".codex", "skills", "lockit-agent-safe");
+}
+
+function writeSkill(dir: string): string {
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, "SKILL.md");
+  writeFileSync(path, SKILL_MD);
+  return path;
 }
 
 /** Write the agent-safe skill into the user's global Claude skills dir so every
  *  repo's Claude knows how to use lockit. Returns the written path. */
 export function installSkill(home: string): string {
-  const dir = skillDir(home);
-  mkdirSync(dir, { recursive: true });
-  const path = join(dir, "SKILL.md");
-  writeFileSync(path, SKILL_MD);
-  return path;
+  return writeSkill(claudeSkillDir(home));
+}
+
+/** Write the same skill into Codex's global skills dir. */
+export function installCodexSkill(home: string): string {
+  return writeSkill(codexSkillDir(home));
 }

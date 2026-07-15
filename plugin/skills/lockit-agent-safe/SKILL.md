@@ -1,5 +1,6 @@
 ---
-description: Use lockit safely without seeing or requesting secret values. Discover secrets by name, inject them into processes, request admission to new secrets. Use whenever the agent needs to access, list, or manage developer secrets, API keys, environment variables, .env values, or any sensitive credentials.
+name: lockit-agent-safe
+description: Use lockit safely without seeing or requesting secret values. Discover secrets by name, inject them into processes, request admission, and share or receive encrypted secret copies. Use whenever the agent needs developer secrets, API keys, environment variables, .env values, encrypted sharing, or sensitive credentials.
 ---
 
 # Lockit Agent-Safe Secret Management
@@ -17,7 +18,7 @@ lockit is a local-first, AI-agent-safe secrets manager. Follow these rules stric
 - **`lockit ls --vars`** — Verbose names + field structure. Still no values. Use this to understand what fields a secret exposes.
 - **`lockit help`** — Full command reference.
 
-## Use Secrets Without Seeing Them (Injection)
+## Use Secrets Without Seeing Them
 
 - **`lockit run -- <cmd>`** (in a project) — Inject bound secrets into `<cmd>`'s environment. Values are in memory only, masked in child output, never printed by the agent, shredded on exit.
 - **`lockit run <slug> -- <cmd>`** (global, only OUTSIDE a project) — Inject a global secret by slug. Same safety: memory-only, masked. Inside a project this is refused: admit the key, then use `run -- <cmd>`.
@@ -30,6 +31,23 @@ lockit is a local-first, AI-agent-safe secrets manager. Follow these rules stric
   - The secret's plaintext is never shown to the agent.
   - Always explain clearly to the human what secret you're admitting and why.
 
+## Share Secrets End-to-End Encrypted
+
+Sharing uses public identities and ciphertext artifacts. You may help run these commands, move public identity files, or move encrypted share files, but you must never ask for, print, or inspect secret values or private identity material.
+
+- **`lockit identity [--out <file>]`** — Create or show this device's public sharing identity. This is public key material only; private sharing keys stay sealed in `LOCKIT_HOME`.
+- **`lockit identity register <username> --relay <url>`** — Register this device's public identity on a relay. The relay stores public keys only.
+- **`lockit identity whois <username> --relay <url>`** — Resolve a username to a public identity id. Value-free.
+- **`lockit share <slug> --to <public-identity.json|@username> [--out <file>] [--relay <url>]`** — Encrypt and sign a point-in-time copy of one stored secret for a recipient. Prefer `--out` or `--relay`; if neither is set, lockit prints ciphertext, never plaintext.
+- **`lockit accept <share-file> [--as <slug>]`** — Decrypt a share addressed to this device and create a new local copy. Existing slugs are never overwritten; lockit suffixes instead.
+- **`lockit receive --relay <url>`** — Fetch encrypted shares addressed to this device from a relay, accept each one, and delete accepted relay messages.
+
+Important limits:
+
+- A share is a point-in-time copy. Later rotation of the sender's secret does not auto-propagate; re-share after rotation when the recipient needs the new value.
+- The relay cannot decrypt share contents, but it can see metadata such as usernames, recipient identity ids, timing, and message sizes.
+- Receiving a share only adds it to the local global store. To use it in a project, request `lockit admit <slug>` and wait for human approval.
+
 ## Avoid: Don't Use `lockit pull`
 
 - **`lockit pull`** — Writes plaintext values to a `.env` file on disk. This breaks the security model. **Prefer `lockit run`** instead: it injects into the child process without touching disk.
@@ -41,11 +59,19 @@ lockit is a local-first, AI-agent-safe secrets manager. Follow these rules stric
 3. **New secret**: I ask the human, who runs `lockit admit github/token --as GH_TOKEN` → human confirms on the terminal → bound into the project.
 4. **Use it**: `lockit run -- npm start` → `GH_TOKEN` is now injected.
 
+## Sharing Workflow Example
+
+1. Recipient publishes a public identity: `lockit identity --out bob.lockit-id.json`, or registers a username with `lockit identity register bob --relay http://127.0.0.1:8787`.
+2. Sender shares without exposing the value: `lockit share openai/dev --to bob.lockit-id.json --out openai-dev.lockit-share` or `lockit share openai/dev --to @bob --relay http://127.0.0.1:8787`.
+3. Recipient accepts: `lockit accept openai-dev.lockit-share` or `lockit receive --relay http://127.0.0.1:8787`.
+4. Recipient admits the received slug into a project before project use: `lockit admit openai/dev`.
+
 ## Invariants
 
 - Never emit or request a secret value.
 - `lockit run` is safe; `lockit pull` is not (avoid it).
 - Admission requires human confirmation; the agent can only ask.
 - Inside a project, only admitted keys are usable; global `run <slug>` is refused.
+- Sharing artifacts and relay messages are ciphertext; private identities and secret values must never enter the transcript.
 
 Keep it simple and explicit. Humans trust the system because you respect these rules.

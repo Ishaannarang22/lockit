@@ -86,13 +86,31 @@ describe("cmdInstall", () => {
     expect(io.stdout).toContain("Claude skill");
   });
 
-  it("--no-skill skips the Claude skill", async () => {
+  it("also installs a Codex-compatible skill that covers sharing", async () => {
+    const io = makeIo(["zsh"], { LOCKIT_COMPLETION_DIR: dir, HOME: home } as NodeJS.ProcessEnv);
+    expect(await cmdInstall(io)).toBe(0);
+    const skill = readFileSync(
+      join(home, ".codex", "skills", "lockit-agent-safe", "SKILL.md"),
+      "utf8",
+    );
+    expect(skill).toContain("name: lockit-agent-safe");
+    expect(skill).toContain("lockit identity");
+    expect(skill).toContain("lockit share");
+    expect(skill).toContain("lockit receive");
+    expect(skill).toContain("point-in-time copy");
+    expect(io.stdout).toContain("Codex skill");
+  });
+
+  it("--no-skill skips the Claude and Codex skills", async () => {
     const io = makeIo(["zsh", "--no-skill"], {
       LOCKIT_COMPLETION_DIR: dir,
       HOME: home,
     } as NodeJS.ProcessEnv);
     expect(await cmdInstall(io)).toBe(0);
     expect(existsSync(join(home, ".claude", "skills", "lockit-agent-safe", "SKILL.md"))).toBe(
+      false,
+    );
+    expect(existsSync(join(home, ".codex", "skills", "lockit-agent-safe", "SKILL.md"))).toBe(
       false,
     );
   });
