@@ -11,6 +11,15 @@ import {
   storePath,
 } from "@lockit/core";
 import { resolveKey, type Io } from "./commands.js";
+import { resolveRelay } from "./relay.js";
+
+function relayHost(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
 
 interface RelayMessage {
   id: string;
@@ -77,7 +86,7 @@ async function cmdIdentityRegister(io: Io, argv: string[]): Promise<number> {
         relay = requireValue(argv, i, "--relay");
         i++;
       } else {
-        io.err("usage: lockit identity register <username> --relay <url>\n");
+        io.err("usage: lockit identity register <username> [--relay <url>]\n");
         return 1;
       }
     }
@@ -85,19 +94,22 @@ async function cmdIdentityRegister(io: Io, argv: string[]): Promise<number> {
     io.err(`${e instanceof Error ? e.message : String(e)}\n`);
     return 1;
   }
-  if (relay === undefined) {
-    io.err("--relay is required\n");
+  let relayUrl: string;
+  try {
+    relayUrl = resolveRelay(io, relay).url;
+  } catch (e) {
+    io.err(`${e instanceof Error ? e.message : String(e)}\n`);
     return 1;
   }
 
   const identity = await loadOrCreateIdentity(await resolveKey(io));
   try {
     const user = await registerRelayUser(
-      relay,
+      relayUrl,
       username,
       JSON.parse(serializePublicIdentity(publicIdentity(identity))) as Record<string, unknown>,
     );
-    io.out(`registered @${user.username} -> ${user.identityId}\n`);
+    io.out(`registered @${user.username} -> ${user.identityId} via ${relayHost(relayUrl)}\n`);
     return 0;
   } catch (e) {
     io.err(`${e instanceof Error ? e.message : String(e)}\n`);
@@ -119,7 +131,7 @@ async function cmdIdentityWhois(io: Io, argv: string[]): Promise<number> {
         relay = requireValue(argv, i, "--relay");
         i++;
       } else {
-        io.err("usage: lockit identity whois <username> --relay <url>\n");
+        io.err("usage: lockit identity whois <username> [--relay <url>]\n");
         return 1;
       }
     }
@@ -127,12 +139,8 @@ async function cmdIdentityWhois(io: Io, argv: string[]): Promise<number> {
     io.err(`${e instanceof Error ? e.message : String(e)}\n`);
     return 1;
   }
-  if (relay === undefined) {
-    io.err("--relay is required\n");
-    return 1;
-  }
   try {
-    const user = await getRelayUser(relay, username);
+    const user = await getRelayUser(resolveRelay(io, relay).url, username);
     io.out(`@${user.username}  ${user.identityId}\n`);
     return 0;
   } catch (e) {
@@ -176,11 +184,26 @@ export async function cmdShare(io: Io): Promise<number> {
     return 1;
   }
 
+  // The relay matters in two cases: an explicit --relay (lookup + delivery)
+  // or an @username recipient (lookup; delivery too unless --out was chosen).
+  // A file identity with no --relay stays fully offline.
+  let relayUrl: string | undefined;
+  const wantsRelay = relay !== undefined || to.startsWith("@");
+  if (wantsRelay) {
+    try {
+      relayUrl = resolveRelay(io, relay).url;
+    } catch (e) {
+      io.err(`${e instanceof Error ? e.message : String(e)}\n`);
+      return 1;
+    }
+  }
+  const sendViaRelay = relay !== undefined || (to.startsWith("@") && out === undefined);
+
   const passphrase = await resolveKey(io);
   let recipient;
   let recipientLabel = "";
   try {
-    const resolved = await resolveShareRecipient(to, relay);
+    const resolved = await resolveShareRecipient(to, relayUrl);
     recipient = resolved.identity;
     recipientLabel = resolved.label;
   } catch (e) {
@@ -201,16 +224,16 @@ export async function cmdShare(io: Io): Promise<number> {
     await writeFile(out, `${artifact}\n`, { encoding: "utf8", mode: 0o600 });
     io.out(`wrote encrypted share for ${recipientLabel} to ${out}\n`);
   }
-  if (relay !== undefined) {
+  if (sendViaRelay && relayUrl !== undefined) {
     try {
-      const id = await postRelay(relay, recipient.id, artifact);
-      io.out(`sent encrypted share ${id} to ${recipientLabel}\n`);
+      const id = await postRelay(relayUrl, recipient.id, artifact);
+      io.out(`sent encrypted share ${id} to ${recipientLabel} via ${relayHost(relayUrl)}\n`);
     } catch (e) {
       io.err(`${e instanceof Error ? e.message : String(e)}\n`);
       return 1;
     }
   }
-  if (out === undefined && relay === undefined) {
+  if (out === undefined && !sendViaRelay) {
     io.out(`${artifact}\n`);
   }
   return 0;
@@ -283,7 +306,7 @@ export async function cmdReceive(io: Io): Promise<number> {
         relay = requireValue(io.argv, i, "--relay");
         i++;
       } else {
-        io.err("usage: lockit receive --relay <url>\n");
+        io.err("usage: lockit receive [--relay <url>]\n");
         return 1;
       }
     }
@@ -291,14 +314,17 @@ export async function cmdReceive(io: Io): Promise<number> {
     io.err(`${e instanceof Error ? e.message : String(e)}\n`);
     return 1;
   }
-  if (relay === undefined) {
-    io.err("--relay is required\n");
+  let relayUrl: string;
+  try {
+    relayUrl = resolveRelay(io, relay).url;
+  } catch (e) {
+    io.err(`${e instanceof Error ? e.message : String(e)}\n`);
     return 1;
   }
 
   const passphrase = await resolveKey(io);
   const identity = await loadOrCreateIdentity(passphrase);
-  const messages = await getRelayMessages(relay, identity.id);
+  const messages = await getRelayMessages(relayUrl, identity.id);
   let store = await loadStore(passphrase, storePath());
   let count = 0;
   for (const message of messages) {
@@ -306,13 +332,13 @@ export async function cmdReceive(io: Io): Promise<number> {
       const accepted = await acceptSecretShare(store, message.artifact, identity);
       store = accepted.store;
       count++;
-      await deleteRelayMessage(relay, message.id);
+      await deleteRelayMessage(relayUrl, message.id);
     } catch (e) {
       io.err(`skipped share ${message.id}: ${e instanceof Error ? e.message : String(e)}\n`);
     }
   }
   await saveStore(store, passphrase, storePath());
-  io.out(`received ${count} share${count === 1 ? "" : "s"}\n`);
+  io.out(`received ${count} share${count === 1 ? "" : "s"} via ${relayHost(relayUrl)}\n`);
   return 0;
 }
 

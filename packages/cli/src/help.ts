@@ -65,15 +65,28 @@ COMMANDS (global store)
         on a relay. First claim wins; the relay stores public keys only.
   identity whois <username> --relay <url>
         Resolve a relay username to its public identity id, value-free.
+  relay [set <url> | reset]
+        Show the relay in use and where it came from; 'set' brings your own
+        relay, 'reset' returns to the public one. Precedence: --relay flag,
+        LOCKIT_RELAY, 'relay set', then the built-in public relay.
   share <slug> --to <public-identity.json|@username> [--out <file>] [--relay <url>]
         Encrypt and sign a point-in-time copy of one stored secret for a friend.
         The artifact is ciphertext; a relay stores it but cannot decrypt it.
   accept <share-file> [--as <slug>]
         Decrypt an encrypted share addressed to this identity and create a new
         local copy. Existing slugs are never overwritten; lockit suffixes instead.
-  receive --relay <url>
-        Fetch encrypted shares addressed to this identity from a local relay and
+  receive [--relay <url>]
+        Fetch encrypted shares addressed to this identity from the relay and
         accept each one as a new local copy.
+
+SHARING (default public relay)
+  Relay commands work out of the box against the public lockit relay — everyone
+  on lockit is reachable there by @username. Everything is end-to-end encrypted:
+  the relay stores only ciphertext and public keys and can never read a secret.
+  Bring your own relay with 'lockit relay set <url>' (or LOCKIT_RELAY/--relay).
+  Note: the public relay sleeps when idle and can take up to a minute to wake.
+  A username is just a phone book entry — before first sharing with someone,
+  confirm their identity id out-of-band ('lockit identity whois <name>').
   install [zsh|bash] [--no-skill]
         Set up lockit: shell tab-completion AND the agent-safe Claude skill
         (installed globally to ~/.claude/skills, so Claude knows lockit in every
@@ -95,6 +108,8 @@ CONFIG (environment variables)
   LOCKIT_PASSPHRASE  Optional override key instead of the keychain-protected key
   LOCKIT_UNLOCK_TTL  Seconds one Touch ID unlock lasts before re-prompting (default 90;
                      0 = prompt every command). Clear early with 'lockit lock'.
+  LOCKIT_RELAY       Relay URL override (above 'lockit relay set' and the default
+                     public relay; below an explicit --relay flag).
 
 EXAMPLES
   # global store
@@ -107,12 +122,12 @@ EXAMPLES
   lockit admit CARTESIA_API_KEY DEEPGRAM_API_KEY               # pick keys -> prompts -> writes ./.env
   lockit status
   lockit run -- npm start                                      # or inject in memory, no .env
-  # end-to-end share over a local relay
-  lockit identity --out bob.lockit-id.json
-  lockit identity register bob --relay http://127.0.0.1:8787
+  # end-to-end encrypted sharing over the public relay (zero setup)
+  lockit identity register bob                                 # once, on bob's machine
   printf 'sk-live-123' | lockit set openai/dev OPENAI_API_KEY
-  lockit share openai/dev --to @bob --relay http://127.0.0.1:8787
-  lockit receive --relay http://127.0.0.1:8787
+  lockit share openai/dev --to @bob                            # on your machine
+  lockit receive                                               # on bob's machine
+  lockit relay set https://relay.mycorp.example                # or bring your own relay
 
 Docs: https://www.npmjs.com/package/@lockit/cli
 `;

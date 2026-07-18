@@ -36,11 +36,12 @@ lockit is a local-first, AI-agent-safe secrets manager. Follow these rules stric
 Sharing uses public identities and ciphertext artifacts. You may help run these commands, move public identity files, or move encrypted share files, but you must never ask for, print, or inspect secret values or private identity material.
 
 - **`lockit identity [--out <file>]`** — Create or show this device's public sharing identity. This is public key material only; private sharing keys stay sealed in `LOCKIT_HOME`.
-- **`lockit identity register <username> --relay <url>`** — Register this device's public identity on a relay. The relay stores public keys only.
-- **`lockit identity whois <username> --relay <url>`** — Resolve a username to a public identity id. Value-free.
-- **`lockit share <slug> --to <public-identity.json|@username> [--out <file>] [--relay <url>]`** — Encrypt and sign a point-in-time copy of one stored secret for a recipient. Prefer `--out` or `--relay`; if neither is set, lockit prints ciphertext, never plaintext.
+- **`lockit identity register <username> [--relay <url>]`** — Register this device's public identity on a relay. The relay stores public keys only.
+- **`lockit identity whois <username> [--relay <url>]`** — Resolve a username to a public identity id. Value-free.
+- **`lockit share <slug> --to <public-identity.json|@username> [--out <file>] [--relay <url>]`** — Encrypt and sign a point-in-time copy of one stored secret for a recipient. `@username` sends via the relay; a file identity with no flags prints ciphertext, never plaintext.
 - **`lockit accept <share-file> [--as <slug>]`** — Decrypt a share addressed to this device and create a new local copy. Existing slugs are never overwritten; lockit suffixes instead.
-- **`lockit receive --relay <url>`** — Fetch encrypted shares addressed to this device from a relay, accept each one, and delete accepted relay messages.
+- **`lockit receive [--relay <url>]`** — Fetch encrypted shares addressed to this device from a relay, accept each one, and delete accepted relay messages.
+- **`lockit relay [set <url> | reset]`** — Show or change the relay in use. Relay commands default to the shared public relay; precedence is `--relay` flag, then `LOCKIT_RELAY`, then `relay set`, then the public default. The public relay sleeps when idle and can take up to a minute to wake.
 
 Important limits:
 
@@ -61,9 +62,9 @@ Important limits:
 
 ## Sharing Workflow Example
 
-1. Recipient publishes a public identity: `lockit identity --out bob.lockit-id.json`, or registers a username with `lockit identity register bob --relay http://127.0.0.1:8787`.
-2. Sender shares without exposing the value: `lockit share openai/dev --to bob.lockit-id.json --out openai-dev.lockit-share` or `lockit share openai/dev --to @bob --relay http://127.0.0.1:8787`.
-3. Recipient accepts: `lockit accept openai-dev.lockit-share` or `lockit receive --relay http://127.0.0.1:8787`.
+1. Recipient publishes a public identity: `lockit identity --out bob.lockit-id.json`, or registers a username with `lockit identity register bob` (public relay by default).
+2. Sender shares without exposing the value: `lockit share openai/dev --to bob.lockit-id.json --out openai-dev.lockit-share` or `lockit share openai/dev --to @bob`.
+3. Recipient accepts: `lockit accept openai-dev.lockit-share` or `lockit receive`.
 4. Recipient admits the received slug into a project before project use: `lockit admit openai/dev`.
 
 ## Invariants

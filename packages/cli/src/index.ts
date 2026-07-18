@@ -12,9 +12,10 @@ import { cmdInit, cmdAdmit, cmdStatus, cmdSecure } from "./project.js";
 import { cmdProtect } from "./protect.js";
 import { cmdLock } from "./lock.js";
 import { cmdAccept, cmdIdentity, cmdReceive, cmdShare } from "./share.js";
+import { cmdRelay } from "./relay.js";
 
 const USAGE =
-  "usage: lockit <init|set|admit|status|secure|protect|lock|identity|share|accept|receive|ls|run|import|export|pull|resolve|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
+  "usage: lockit <init|set|admit|status|secure|protect|lock|identity|relay|share|accept|receive|ls|run|import|export|pull|resolve|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
 
 /** Read all of stdin to a string. Only `set` needs the value, so we read lazily. */
 async function readStdin(): Promise<string> {
@@ -62,6 +63,10 @@ async function main(): Promise<number> {
   if (command === "identity") {
     const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
     return await cmdIdentity(io);
+  }
+  if (command === "relay") {
+    const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
+    return await cmdRelay(io);
   }
   if (command === "share") {
     const io: Io = { argv, stdin: "", env: process.env, out, err, cwd: process.cwd() };
