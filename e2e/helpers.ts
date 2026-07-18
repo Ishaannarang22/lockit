@@ -8,6 +8,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 /** The real compiled binary the e2e suite drives as a black box. */
 export const LOCKIT_BIN = resolve(HERE, "../packages/cli/dist/index.js");
 
+/** A TEST-ONLY build of the binary whose human-presence gate is controllable via
+ *  the LOCKIT_E2E_GATE env var (see packages/cli/scripts/build-e2e-gate.mjs). Used
+ *  ONLY to exercise the admit / pull / secure-mode flows that would otherwise block
+ *  on a real Touch ID dialog. This binary lives in dist-e2e/ and never ships; the
+ *  packaging guard test proves it stays out of the published tarball. */
+export const LOCKIT_BIN_GATED = resolve(HERE, "../packages/cli/dist-e2e/index.js");
+
 export interface RunResult {
   stdout: string;
   stderr: string;
@@ -20,15 +27,24 @@ export interface RunOpts {
   env?: Record<string, string>;
   /** Working directory for the child — used to exercise per-project behavior. */
   cwd?: string;
+  /** Drive the gated (dist-e2e) binary instead of the shipped one, and set the
+   *  presence gate outcome: "allow" simulates a human confirming Touch ID,
+   *  "deny" simulates no human / an agent that cannot self-authorize. Omit to use
+   *  the real shipped binary (whose gate cannot be satisfied non-interactively). */
+  gate?: "allow" | "deny";
 }
 
-/** Spawn the real `lockit` binary in a sandbox HOME and capture stdout/stderr/exit.
- *  Black box: we only feed argv + stdin + env and observe outputs. */
+/** Spawn the `lockit` binary in a sandbox HOME and capture stdout/stderr/exit.
+ *  Black box: we only feed argv + stdin + env and observe outputs. With opts.gate
+ *  set, drives the test-only dist-e2e binary so admit/pull/secure flows are
+ *  reachable without a Touch ID dialog. */
 export function runLockit(home: string, args: string[], opts: RunOpts = {}): Promise<RunResult> {
   return new Promise((resolveP, reject) => {
     const env: NodeJS.ProcessEnv = { ...process.env, LOCKIT_HOME: home, ...opts.env };
     if (opts.passphrase !== undefined) env.LOCKIT_PASSPHRASE = opts.passphrase;
-    const child = spawn(process.execPath, [LOCKIT_BIN, ...args], { env, cwd: opts.cwd });
+    const bin = opts.gate === undefined ? LOCKIT_BIN : LOCKIT_BIN_GATED;
+    if (opts.gate !== undefined) env.LOCKIT_E2E_GATE = opts.gate;
+    const child = spawn(process.execPath, [bin, ...args], { env, cwd: opts.cwd });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (c: Buffer) => (stdout += c.toString("utf8")));
