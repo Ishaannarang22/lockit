@@ -79,14 +79,6 @@ COMMANDS (global store)
         Fetch encrypted shares addressed to this identity from the relay and
         accept each one as a new local copy.
 
-SHARING (default public relay)
-  Relay commands work out of the box against the public lockit relay — everyone
-  on lockit is reachable there by @username. Everything is end-to-end encrypted:
-  the relay stores only ciphertext and public keys and can never read a secret.
-  Bring your own relay with 'lockit relay set <url>' (or LOCKIT_RELAY/--relay).
-  Note: the public relay sleeps when idle and can take up to a minute to wake.
-  A username is just a phone book entry — before first sharing with someone,
-  confirm their identity id out-of-band ('lockit identity whois <name>').
   install [zsh|bash] [--no-skill]
         Set up lockit: shell tab-completion AND the agent-safe Claude skill
         (installed globally to ~/.claude/skills, so Claude knows lockit in every
@@ -95,6 +87,15 @@ SHARING (default public relay)
         Print the completion script (for eval or a Homebrew formula).
   help, --help, -h
         Show this help.
+
+SHARING (default public relay)
+  Relay commands work out of the box against the public lockit relay — everyone
+  on lockit is reachable there by @username. Everything is end-to-end encrypted:
+  the relay stores only ciphertext and public keys and can never read a secret.
+  Bring your own relay with 'lockit relay set <url>' (or LOCKIT_RELAY/--relay).
+  Note: the public relay sleeps when idle and can take up to a minute to wake.
+  A username is just a phone book entry — before first sharing with someone,
+  confirm their identity id out-of-band ('lockit identity whois <name>').
 
 SETUP
   None. On first use lockit creates an encrypted store at ~/.lockit/store.json.

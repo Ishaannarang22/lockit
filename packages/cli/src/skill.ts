@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // The agent-safe skill, embedded so it ships with the npm package and can be
@@ -90,4 +90,24 @@ export function installSkill(home: string): string {
 /** Write the same skill into Codex's global skills dir. */
 export function installCodexSkill(home: string): string {
   return writeSkill(codexSkillDir(home));
+}
+
+/** Bring previously installed skills up to date with this CLI version. Only
+ *  touches skills the user already has (running `lockit install` is the opt-in;
+ *  absence stays absent). Swallows filesystem errors — a broken skills dir must
+ *  never break a lockit command. Returns the paths it rewrote. */
+export function refreshInstalledSkills(home: string): string[] {
+  const refreshed: string[] = [];
+  for (const dir of [claudeSkillDir(home), codexSkillDir(home)]) {
+    try {
+      const path = join(dir, "SKILL.md");
+      if (!existsSync(path)) continue;
+      if (readFileSync(path, "utf8") === SKILL_MD) continue;
+      writeFileSync(path, SKILL_MD);
+      refreshed.push(path);
+    } catch {
+      // e.g. unreadable file or SKILL.md is a directory — leave it alone.
+    }
+  }
+  return refreshed;
 }

@@ -13,6 +13,8 @@ import { cmdProtect } from "./protect.js";
 import { cmdLock } from "./lock.js";
 import { cmdAccept, cmdIdentity, cmdReceive, cmdShare } from "./share.js";
 import { cmdRelay } from "./relay.js";
+import { refreshInstalledSkills } from "./skill.js";
+import { homedir } from "node:os";
 
 const USAGE =
   "usage: lockit <init|set|admit|status|secure|protect|lock|identity|relay|share|accept|receive|ls|run|import|export|pull|resolve|install|completion|help> [args...]\nRun 'lockit help' for details.\n";
@@ -28,6 +30,10 @@ async function readStdin(): Promise<string> {
 
 async function main(): Promise<number> {
   const [command, ...argv] = process.argv.slice(2);
+
+  // Self-heal previously installed agent skills so an npm upgrade is enough —
+  // users who ran `lockit install` once get skill updates without re-running it.
+  refreshInstalledSkills(process.env.HOME ?? homedir());
 
   const out = (s: string): void => {
     process.stdout.write(s);
