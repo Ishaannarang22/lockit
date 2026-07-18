@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
 import { runLockit, withSandbox } from "./helpers.js";
 
 const PW = "e2e-run-pass";
@@ -111,12 +112,14 @@ describe("lockit run (e2e, real binary)", () => {
     });
   });
 
-  it("does not inject file-type fields into the child env (v1: env-only)", async () => {
+  it("materializes a file-type field to a 0600 temp path; env var is the path, not the value", async () => {
     await withSandbox(async (home) => {
       await runLockit(home, ["set", "openai/dev", "FILEFIELD", "--file"], {
         passphrase: PW,
         stdin: SECRET,
       });
+      // The child sees FILEFIELD = an absolute path to a 0600 file whose contents
+      // are the secret; the raw value is never placed in the env var itself.
       const run = await runLockit(
         home,
         [
@@ -125,13 +128,37 @@ describe("lockit run (e2e, real binary)", () => {
           "--",
           "node",
           "-e",
-          "process.stdout.write(process.env.FILEFIELD===undefined?'ABSENT':'PRESENT')",
+          "const fs=require('fs');const p=process.env.FILEFIELD;" +
+            "const m=(fs.statSync(p).mode & 0o777).toString(8);" +
+            "process.stdout.write(`PATH=${p} MODE=${m} BODY=${fs.readFileSync(p,'utf8')}`)",
         ],
         { passphrase: PW },
       );
       expect(run.code).toBe(0);
-      expect(run.stdout).toBe("ABSENT");
-      expect(run.stdout).not.toContain(SECRET);
+      expect(run.stdout).toContain("MODE=600");
+      expect(run.stdout).toContain(`BODY=${SECRET}`);
+      // the injected env var is a path, not the raw secret value
+      expect(run.stdout).toMatch(/PATH=\/.+/);
+      expect(run.stdout).not.toMatch(new RegExp(`FILEFIELD=${SECRET}`));
+    });
+  });
+
+  it("shreds the materialized file after run exits", async () => {
+    await withSandbox(async (home) => {
+      await runLockit(home, ["set", "openai/dev", "FILEFIELD", "--file"], {
+        passphrase: PW,
+        stdin: SECRET,
+      });
+      const run = await runLockit(
+        home,
+        ["run", "openai/dev", "--", "node", "-e", "process.stdout.write(process.env.FILEFIELD)"],
+        { passphrase: PW },
+      );
+      expect(run.code).toBe(0);
+      const path = run.stdout.trim();
+      expect(path.length).toBeGreaterThan(0);
+      // the temp file must not survive the run
+      expect(existsSync(path)).toBe(false);
     });
   });
 
@@ -307,7 +334,7 @@ describe("lockit entry point (e2e)", () => {
       const r = await runLockit(home, ["frobnicate"], { passphrase: PW });
       expect(r.code).toBe(1);
       expect(r.stderr).toContain(
-        "usage: lockit <init|set|admit|status|secure|protect|lock|identity|share|accept|receive|ls|run|import|export|pull|resolve|install|completion|help",
+        "usage: lockit <init|set|admit|status|secure|protect|lock|identity|relay|share|accept|receive|ls|run|import|export|pull|resolve|install|completion|help",
       );
       expect(r.stdout).toBe("");
     });

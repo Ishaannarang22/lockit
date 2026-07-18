@@ -42,7 +42,7 @@ describe("per-project keys + admission (e2e, real binary)", () => {
     });
   });
 
-  it.skip("admit refuses to materialize plaintext without a human gate", async () => {
+  it("admit refuses to materialize plaintext without a human gate", async () => {
     await withSandbox(async (home) => {
       const p = mkdtempSync(join(tmpdir(), "lockit-M-"));
       try {
@@ -52,7 +52,12 @@ describe("per-project keys + admission (e2e, real binary)", () => {
           passphrase,
         });
 
-        const adm = await runLockit(home, ["admit", "CARTESIA_API_KEY"], { cwd: p, passphrase });
+        // gate "deny" = the human declined / no human present.
+        const adm = await runLockit(home, ["admit", "CARTESIA_API_KEY"], {
+          cwd: p,
+          passphrase,
+          gate: "deny",
+        });
         expect(adm.code).toBe(1);
         expect(adm.stdout).not.toContain("cart-123"); // value-free stdout
         expect(existsSync(join(p, ".env"))).toBe(false);
@@ -63,7 +68,7 @@ describe("per-project keys + admission (e2e, real binary)", () => {
     });
   });
 
-  it.skip("secure mode writes references to .env after real local auth", async () => {
+  it("secure mode writes references to .env after real local auth", async () => {
     await withSandbox(async (home) => {
       const p = mkdtempSync(join(tmpdir(), "lockit-SEC-"));
       try {
@@ -73,7 +78,8 @@ describe("per-project keys + admission (e2e, real binary)", () => {
         const sec = await runLockit(home, ["secure", "on"], { cwd: p, passphrase });
         expect(sec.stdout).toContain("secure mode: on");
 
-        await runLockit(home, ["admit", "ZAI_API_KEY"], { cwd: p, passphrase });
+        // gate "allow" = the human confirmed Touch ID / password.
+        await runLockit(home, ["admit", "ZAI_API_KEY"], { cwd: p, passphrase, gate: "allow" });
         const env = readFileSync(join(p, ".env"), "utf8");
         // a reference (quoted because it contains '#'), NOT the plaintext value
         expect(env).toContain('ZAI_API_KEY="lockit:pulse#ZAI_API_KEY"');
@@ -127,7 +133,7 @@ describe("per-project keys + admission (e2e, real binary)", () => {
     });
   });
 
-  it.skip("admission gates a shared secret; an agent cannot self-admit; sandbox blocks unadmitted", async () => {
+  it("admission gates a shared secret; an agent cannot self-admit; sandbox blocks unadmitted", async () => {
     await withSandbox(async (home) => {
       const p = mkdtempSync(join(tmpdir(), "lockit-P-"));
       try {
@@ -137,17 +143,21 @@ describe("per-project keys + admission (e2e, real binary)", () => {
           passphrase,
         });
 
-        // an agent with no tty cannot pull an unadmitted value into the project
+        // an agent (gate denied) cannot pull an unadmitted value into the project
         const denied = await runLockit(
           home,
           ["pull", "OPENAI_API_KEY", "--out", join(p, ".env")],
-          { cwd: p, passphrase },
+          { cwd: p, passphrase, gate: "deny" },
         );
         expect(denied.code).toBe(1);
         expect(denied.stderr.toLowerCase()).toContain("authorization");
 
-        // an agent with no tty cannot self-admit
-        const noTty = await runLockit(home, ["admit", "openai/personal"], { cwd: p, passphrase });
+        // an agent (gate denied) cannot self-admit
+        const noTty = await runLockit(home, ["admit", "openai/personal"], {
+          cwd: p,
+          passphrase,
+          gate: "deny",
+        });
         expect(noTty.code).toBe(1);
         expect(noTty.stderr.toLowerCase()).toContain("denied");
 
