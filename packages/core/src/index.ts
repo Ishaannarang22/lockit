@@ -7,6 +7,7 @@ export {
   listSecrets,
   removeSecret,
   secretEnv,
+  secretFiles,
   isValidFieldKey,
   addTag,
 } from "./store/store.js";
@@ -17,12 +18,7 @@ export { parseDotenv, mergeDotenv } from "./env/dotenv.js";
 export type { DotenvEntry, MergeResult } from "./env/dotenv.js";
 export { parseReferences, serializeReferences } from "./env/reference.js";
 export type { Reference } from "./env/reference.js";
-export {
-  builtinRegistry,
-  mergeRegistries,
-  entryFor,
-  providerForEnv,
-} from "./registry/registry.js";
+export { builtinRegistry, mergeRegistries, entryFor, providerForEnv } from "./registry/registry.js";
 export type { RegistryEntry } from "./registry/registry.js";
 export { resolveVar, resolveRef } from "./store/resolve.js";
 export type { ResolveResult, RefResolveResult } from "./store/resolve.js";

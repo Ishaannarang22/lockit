@@ -6,6 +6,7 @@ import {
   listSecrets,
   removeSecret,
   secretEnv,
+  secretFiles,
   isValidFieldKey,
   addTag,
 } from "./store.js";
@@ -522,6 +523,64 @@ describe("secretEnv — env-only injection map", () => {
       FULL: "exact value with spaces",
       EMPTY: "",
     });
+  });
+});
+
+describe("secretFiles — file-only materialization map", () => {
+  it("maps file fields to a key=>contents record", () => {
+    let s = upsertField(emptyStore(), {
+      slug: "gcp/analytics",
+      schema: "gcp",
+      key: "SA_JSON",
+      type: "file",
+      value: "{json}",
+    });
+    s = upsertField(s, {
+      slug: "gcp/analytics",
+      schema: "gcp",
+      key: "PEM",
+      type: "file",
+      value: "pemdata",
+    });
+    const sec = getSecret(s, "gcp/analytics");
+    expect(sec).toBeDefined();
+    expect(secretFiles(sec as StoredSecret)).toEqual({ SA_JSON: "{json}", PEM: "pemdata" });
+  });
+
+  it("excludes env-type fields", () => {
+    let s = upsertField(emptyStore(), {
+      slug: "a/b",
+      schema: "x",
+      key: "ENVV",
+      type: "env",
+      value: "env-val",
+    });
+    s = upsertField(s, { slug: "a/b", schema: "x", key: "FILEV", type: "file", value: "file-val" });
+    const files = secretFiles(getSecret(s, "a/b") as StoredSecret);
+    expect(files).toEqual({ FILEV: "file-val" });
+    expect(files).not.toHaveProperty("ENVV");
+  });
+
+  it("returns an empty record for a secret with only env fields", () => {
+    const s = upsertField(emptyStore(), {
+      slug: "a/b",
+      schema: "x",
+      key: "ENVV",
+      type: "env",
+      value: "v",
+    });
+    expect(secretFiles(getSecret(s, "a/b") as StoredSecret)).toEqual({});
+  });
+
+  it("preserves file contents exactly, including newlines", () => {
+    const s = upsertField(emptyStore(), {
+      slug: "a/b",
+      schema: "x",
+      key: "PEM",
+      type: "file",
+      value: "line1\nline2\n",
+    });
+    expect(secretFiles(getSecret(s, "a/b") as StoredSecret)).toEqual({ PEM: "line1\nline2\n" });
   });
 });
 
