@@ -14,6 +14,7 @@ import {
   setVaultSecure,
   storePath,
   writeVault,
+  type FieldType,
   type StoreData,
 } from "@lockit/core";
 import { resolveKey, type Io } from "./commands.js";
@@ -25,6 +26,7 @@ interface AdmitItem {
   slug: string;
   field: string;
   value: string;
+  type: FieldType;
 }
 
 /** Resolve one admit argument (bare field name, slug, or slug#field) to a
@@ -206,11 +208,20 @@ export async function cmdAdmit(io: Io): Promise<number> {
       return 1;
     }
     const field = getSecret(store, r.slug)?.fields.find((f) => f.key === r.field);
-    if (field === undefined || field.type !== "env") {
+    if (field === undefined) {
       io.err(`not found: ${r.slug}#${r.field}\n`);
       return 1;
     }
-    items.push({ env: asName ?? r.field, slug: r.slug, field: r.field, value: field.value });
+    // Both env and file fields are admissible. A file field is admitted as a
+    // reference and materialized at run time (see .env write below); env fields
+    // carry their value for the default plaintext .env.
+    items.push({
+      env: asName ?? r.field,
+      slug: r.slug,
+      field: r.field,
+      value: field.value,
+      type: field.type,
+    });
   }
 
   // ONE human confirmation for the whole batch (value-free). Skipped when unlocking
@@ -237,13 +248,18 @@ export async function cmdAdmit(io: Io): Promise<number> {
 
   // Materialize into the project's .env (0600). Secure mode writes references
   // (resolved at runtime by `lockit run`); default writes the real values.
+  // File-type fields are ALWAYS written as references, never as raw contents:
+  // a file field's env var must hold a PATH, and writing its plaintext contents
+  // into `.env` would both be semantically wrong and leak the secret to disk
+  // outside the 0600 tmp materialization. `lockit run -- <cmd>` resolves the
+  // vault binding and materializes the file at 0600 regardless of this `.env`.
   const envPath = join(root, ".env");
   const existing = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
   const merged = mergeDotenv(
     existing,
     items.map((it) => ({
       key: it.env,
-      value: secure ? `lockit:${it.slug}#${it.field}` : it.value,
+      value: secure || it.type === "file" ? `lockit:${it.slug}#${it.field}` : it.value,
     })),
     { force },
   );

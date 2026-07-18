@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
-import { constants as osConstants } from "node:os";
+import { constants as osConstants, tmpdir } from "node:os";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   bindKey,
   findProjectRoot,
@@ -13,6 +15,7 @@ import {
   resolveVaultEnv,
   saveStore,
   secretEnv,
+  secretFiles,
   storePath,
   upsertField,
   writeVault,
@@ -245,26 +248,94 @@ function exitCode(code: number | null, signal: NodeJS.Signals | null): number {
   return 0;
 }
 
+/** Materialize file-type fields (env-var name -> file CONTENTS) to a fresh 0600
+ *  temp dir — the closest portable equivalent to tmpfs. Returns the env map
+ *  (env-var name -> ABSOLUTE PATH, never the contents) plus a best-effort
+ *  `cleanup` that shreds (overwrites) then removes the files and the dir. Temp
+ *  file NAMES are random, never the env-var name, so a user-chosen `--as` alias
+ *  can never traverse out of the temp dir. */
+function materializeFiles(files: Record<string, string>): {
+  paths: Record<string, string>;
+  cleanup: () => void;
+} {
+  const names = Object.keys(files);
+  if (names.length === 0) return { paths: {}, cleanup: () => {} };
+  const dir = mkdtempSync(join(tmpdir(), "lockit-run-"));
+  const paths: Record<string, string> = {};
+  const written: { path: string; len: number }[] = [];
+  for (const name of names) {
+    const contents = files[name]!;
+    const path = join(dir, randomBytes(8).toString("hex"));
+    writeFileSync(path, contents, { mode: 0o600 });
+    chmodSync(path, 0o600);
+    paths[name] = path;
+    written.push({ path, len: Buffer.byteLength(contents) });
+  }
+  const cleanup = (): void => {
+    // Best-effort: overwrite each file with random bytes of the same length
+    // (defeat casual undelete), then remove the whole dir. Node cannot guarantee
+    // the bytes hit stable storage, but we minimize the plaintext's lifetime.
+    for (const { path, len } of written) {
+      try {
+        if (len > 0) writeFileSync(path, randomBytes(len));
+      } catch {
+        // file may already be gone; removal below is the backstop.
+      }
+    }
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // best-effort; nothing more we can safely do.
+    }
+  };
+  return { paths, cleanup };
+}
+
 /** Spawn `cmd` with `injected` env vars set, masking every injected value in the
- *  child's stdout/stderr. Shared by global `run <slug>` and project `run -- cmd`. */
-function spawnMasked(io: Io, cmd: string[], injected: Record<string, string>): Promise<number> {
+ *  child's stdout/stderr. `files` (env-var name -> file CONTENTS) are materialized
+ *  to 0600 temp files, injected as their PATH, and shredded on every exit path
+ *  (success, failure, spawn error, or signal). File CONTENTS are deliberately NOT
+ *  masked: they never enter the child env (only the path does) and live solely on
+ *  disk at 0600. Shared by global `run <slug>` and project `run -- cmd`. */
+function spawnMasked(
+  io: Io,
+  cmd: string[],
+  injected: Record<string, string>,
+  files: Record<string, string> = {},
+): Promise<number> {
   const command = cmd[0]!;
   const values = Object.values(injected);
-  const env: NodeJS.ProcessEnv = { ...io.env, ...injected };
+  const { paths, cleanup } = materializeFiles(files);
+  const env: NodeJS.ProcessEnv = { ...io.env, ...injected, ...paths };
   return new Promise<number>((resolve) => {
-    const child = spawn(command, cmd.slice(1), { env, stdio: ["inherit", "pipe", "pipe"] });
+    let cleaned = false;
+    const finish = (code: number): void => {
+      if (!cleaned) {
+        cleaned = true;
+        cleanup();
+      }
+      resolve(code);
+    };
+    let child;
+    try {
+      child = spawn(command, cmd.slice(1), { env, stdio: ["inherit", "pipe", "pipe"] });
+    } catch (e) {
+      io.err(`failed to run ${command}: ${e instanceof Error ? e.message : String(e)}\n`);
+      finish(1);
+      return;
+    }
     const outFwd = makeMaskingForwarder(values, io.out);
     const errFwd = makeMaskingForwarder(values, io.err);
     child.stdout?.on("data", (chunk: Buffer) => outFwd.onData(chunk));
     child.stderr?.on("data", (chunk: Buffer) => errFwd.onData(chunk));
     child.on("error", (e) => {
       io.err(`failed to run ${command}: ${e instanceof Error ? e.message : String(e)}\n`);
-      resolve(1);
+      finish(1);
     });
     child.on("close", (code, signal) => {
       outFwd.flush();
       errFwd.flush();
-      resolve(exitCode(code, signal));
+      finish(exitCode(code, signal));
     });
   });
 }
@@ -288,9 +359,9 @@ export async function cmdRun(io: Io): Promise<number> {
       return 1;
     }
     const store = await loadStore(passphrase, storePath());
-    const { env: injected, missing } = resolveVaultEnv(store, readVault(root));
+    const { env: injected, files, missing } = resolveVaultEnv(store, readVault(root));
     if (missing.length > 0) io.err(`warning: unresolved bindings: ${missing.sort().join(", ")}\n`);
-    return await spawnMasked(io, cmd, injected);
+    return await spawnMasked(io, cmd, injected, files);
   }
 
   // Global mode (`run <slug>`) is refused INSIDE a project: the sandbox requires
@@ -319,5 +390,5 @@ export async function cmdRun(io: Io): Promise<number> {
     io.err(`no secret: ${slug}\n`);
     return 1;
   }
-  return await spawnMasked(io, cmd, secretEnv(secret));
+  return await spawnMasked(io, cmd, secretEnv(secret), secretFiles(secret));
 }

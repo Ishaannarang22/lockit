@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -507,18 +508,55 @@ describe("lockit cli commands", () => {
       expect(r.out).toBe("before *** after");
     });
 
-    it("does not inject file-type fields into the child env (v1: env-only)", async () => {
+    it("materializes a file-type field to a 0600 temp path, injects the path, and shreds on exit", async () => {
       await run(cmdSet, ["openai/dev", "FILEFIELD", "--file"], `${SECRET}\n`);
       const r = await run(cmdRun, [
         "openai/dev",
         "node",
         "-e",
-        "process.stdout.write(process.env.FILEFIELD === undefined ? 'ABSENT' : 'PRESENT')",
+        "const fs=require('fs');const p=process.env.FILEFIELD;const m=(fs.statSync(p).mode&0o777).toString(8);process.stdout.write('PATH='+p+'\\nPERM='+m+'\\nBODY='+fs.readFileSync(p,'utf8'))",
       ]);
       expect(r.code).toBe(0);
-      // Not injected -> child reports ABSENT, and the value never appears.
-      expect(r.out).toBe("ABSENT");
-      expect(r.out).not.toContain(SECRET);
+      const path = /PATH=(.*)/.exec(r.out)?.[1];
+      expect(path).toBeTruthy();
+      // env var is the PATH, not the contents.
+      expect(path).not.toContain(SECRET);
+      // materialized at 0600 with the exact contents.
+      expect(r.out).toContain("PERM=600");
+      expect(r.out).toContain(`BODY=${SECRET}`);
+      // shredded + removed after the child exits.
+      expect(existsSync(path as string)).toBe(false);
+    });
+
+    it("preserves env-field masking while a co-resident file field is materialized", async () => {
+      // A secret with BOTH an env field (must be masked) and a file field
+      // (contents live on disk; the injected env value is a path, not the value).
+      await run(cmdSet, ["openai/dev", "TOKEN"], `${SECRET}\n`);
+      await run(cmdSet, ["openai/dev", "CERT", "--file"], "PEMBODY\n");
+      const r = await run(cmdRun, [
+        "openai/dev",
+        "node",
+        "-e",
+        "const fs=require('fs');process.stdout.write('T='+process.env.TOKEN+' F='+fs.readFileSync(process.env.CERT,'utf8'))",
+      ]);
+      expect(r.code).toBe(0);
+      expect(r.out).not.toContain(SECRET); // env value still masked
+      expect(r.out).toContain("T=***");
+      expect(r.out).toContain("F=PEMBODY"); // file contents readable via the path
+    });
+
+    it("shreds the temp file even when the child exits non-zero", async () => {
+      await run(cmdSet, ["openai/dev", "FILEFIELD", "--file"], `${SECRET}\n`);
+      const r = await run(cmdRun, [
+        "openai/dev",
+        "node",
+        "-e",
+        "process.stdout.write('PATH='+process.env.FILEFIELD);process.exit(3)",
+      ]);
+      expect(r.code).toBe(3);
+      const path = /PATH=(.*)/.exec(r.out)?.[1];
+      expect(path).toBeTruthy();
+      expect(existsSync(path as string)).toBe(false);
     });
 
     it("injects every env-type field of a multi-field secret", async () => {

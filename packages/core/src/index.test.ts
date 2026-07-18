@@ -9,6 +9,7 @@ import {
   listSecrets,
   removeSecret,
   secretEnv,
+  secretFiles,
   isValidFieldKey,
   saveStore,
   loadStore,
@@ -27,6 +28,7 @@ import {
   listSecrets as listSecretsSrc,
   removeSecret as removeSecretSrc,
   secretEnv as secretEnvSrc,
+  secretFiles as secretFilesSrc,
   isValidFieldKey as isValidFieldKeySrc,
 } from "./store/store.js";
 import { saveStore as saveStoreSrc, loadStore as loadStoreSrc } from "./store/store-persist.js";
@@ -49,6 +51,7 @@ describe("@lockit/core barrel re-exports", () => {
     expect(listSecrets).toBe(listSecretsSrc);
     expect(removeSecret).toBe(removeSecretSrc);
     expect(secretEnv).toBe(secretEnvSrc);
+    expect(secretFiles).toBe(secretFilesSrc);
     expect(isValidFieldKey).toBe(isValidFieldKeySrc);
   });
 
@@ -103,6 +106,7 @@ describe("@lockit/core barrel re-exports", () => {
         "resolveVaultEnv",
         "saveStore",
         "secretEnv",
+        "secretFiles",
         "serializePublicIdentity",
         "serializeReferences",
         "setVaultSecure",
@@ -126,6 +130,7 @@ describe("@lockit/core barrel re-exports", () => {
       listSecrets,
       removeSecret,
       secretEnv,
+      secretFiles,
       isValidFieldKey,
       saveStore,
       loadStore,

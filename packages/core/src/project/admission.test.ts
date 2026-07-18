@@ -38,6 +38,23 @@ describe("resolveBinding (sandbox)", () => {
       status: "ok",
       value: "pg://a",
       ref: "app/db#DATABASE_URL",
+      type: "env",
+    });
+  });
+  it("resolves a bound file-type field, carrying its type for materialization", () => {
+    const s = upsertField(seed(), {
+      slug: "gcp/sa",
+      schema: "gcp",
+      key: "SA_JSON",
+      type: "file",
+      value: "{json}",
+    });
+    const v = bindKey(emptyVault(), "GOOGLE_APPLICATION_CREDENTIALS", "gcp/sa#SA_JSON");
+    expect(resolveBinding(s, v, "GOOGLE_APPLICATION_CREDENTIALS")).toEqual({
+      status: "ok",
+      value: "{json}",
+      ref: "gcp/sa#SA_JSON",
+      type: "file",
     });
   });
   it("reports an unbound name (no global guess)", () => {
@@ -56,6 +73,22 @@ describe("resolveVaultEnv", () => {
     const { env, missing } = resolveVaultEnv(seed(), v);
     expect(env).toEqual({ DATABASE_URL: "pg://a" });
     expect(missing).toEqual(["GHOST"]);
+  });
+
+  it("separates file-type bindings into `files` (contents), keyed by env-var name", () => {
+    const s = upsertField(seed(), {
+      slug: "gcp/sa",
+      schema: "gcp",
+      key: "SA_JSON",
+      type: "file",
+      value: "{json}",
+    });
+    let v = bindKey(emptyVault(), "DATABASE_URL", "app/db#DATABASE_URL");
+    v = bindKey(v, "GOOGLE_APPLICATION_CREDENTIALS", "gcp/sa#SA_JSON");
+    const { env, files, missing } = resolveVaultEnv(s, v);
+    expect(env).toEqual({ DATABASE_URL: "pg://a" });
+    expect(files).toEqual({ GOOGLE_APPLICATION_CREDENTIALS: "{json}" });
+    expect(missing).toEqual([]);
   });
 });
 

@@ -1,3 +1,4 @@
+import type { FieldType } from "../model/secret.js";
 import type { StoreData } from "../store/store.js";
 import type { Vault } from "./vault.js";
 
@@ -14,13 +15,15 @@ export function parseRef(ref: string): Ref {
 }
 
 export type BindingResolution =
-  | { status: "ok"; value: string; ref: string }
+  | { status: "ok"; value: string; ref: string; type: FieldType }
   | { status: "unbound" }
   | { status: "missing"; ref: string };
 
 /** Resolve a bound env-var name to its current value through the store. The
  *  sandbox: a name not bound in the vault is `unbound` — never a global guess.
- *  A bound name whose secret/field has since vanished is `missing`. */
+ *  A bound name whose secret/field has since vanished is `missing`. Carries the
+ *  field `type` so injection can distinguish `env` (value) from `file` (path to
+ *  materialized 0600 file); for a `file` field `value` is the file CONTENTS. */
 export function resolveBinding(store: StoreData, vault: Vault, name: string): BindingResolution {
   const ref = vault.bindings[name];
   if (ref === undefined) return { status: "unbound" };
@@ -32,24 +35,33 @@ export function resolveBinding(store: StoreData, vault: Vault, name: string): Bi
   }
   const secret = store.secrets.find((s) => s.slug === parsed.slug);
   const field = secret?.fields.find((f) => f.key === parsed.field);
-  if (field === undefined || field.type !== "env") return { status: "missing", ref };
-  return { status: "ok", value: field.value, ref };
+  if (field === undefined) return { status: "missing", ref };
+  return { status: "ok", value: field.value, ref, type: field.type };
 }
 
-/** Resolve every bound env var for a project, for `run` injection. Returns the
- *  env map for resolvable bindings and the names whose refs are missing. */
+/** Resolve every bound env var for a project, for `run` injection. Returns:
+ *  - `env`: env-field bindings (env-var name -> value, injected inline);
+ *  - `files`: file-field bindings (env-var name -> file CONTENTS; the CLI
+ *    materializes each to a 0600 temp file and injects the env var as its PATH);
+ *  - `missing`: names whose refs no longer resolve. */
 export function resolveVaultEnv(
   store: StoreData,
   vault: Vault,
-): { env: Record<string, string>; missing: string[] } {
+): { env: Record<string, string>; files: Record<string, string>; missing: string[] } {
   const env: Record<string, string> = {};
+  const files: Record<string, string> = {};
   const missing: string[] = [];
   for (const name of Object.keys(vault.bindings)) {
     const r = resolveBinding(store, vault, name);
-    if (r.status === "ok") env[name] = r.value;
-    else missing.push(name);
+    if (r.status !== "ok") {
+      missing.push(name);
+    } else if (r.type === "file") {
+      files[name] = r.value;
+    } else {
+      env[name] = r.value;
+    }
   }
-  return { env, missing };
+  return { env, files, missing };
 }
 
 export type AdmitResolution =

@@ -116,3 +116,16 @@ export function secretEnv(secret: StoredSecret): Record<string, string> {
   }
   return env;
 }
+
+/** The materialization map for injection: `file`-type fields only, mapping each
+ *  field key to its file CONTENTS. The caller (CLI) writes each to a 0600 temp
+ *  file and injects the env var as the file's PATH — never the contents. Kept
+ *  separate from `secretEnv` because env fields and file fields inject
+ *  differently (value vs path). */
+export function secretFiles(secret: StoredSecret): Record<string, string> {
+  const files: Record<string, string> = {};
+  for (const f of secret.fields) {
+    if (f.type === "file") files[f.key] = f.value;
+  }
+  return files;
+}

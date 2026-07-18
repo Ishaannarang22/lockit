@@ -64,7 +64,9 @@ export async function cmdPull(io: Io): Promise<number> {
     return 1;
   }
   if (args.yes) {
-    io.err("--yes cannot authorize plaintext secret writes; use local auth or an interactive confirmation\n");
+    io.err(
+      "--yes cannot authorize plaintext secret writes; use local auth or an interactive confirmation\n",
+    );
     return 1;
   }
 
@@ -118,7 +120,10 @@ export async function cmdPull(io: Io): Promise<number> {
         io.err(`binding is broken: ${name} -> ${b.ref}\n`);
         return 1;
       }
-      entries.push({ key: name, value: b.value });
+      // File-type fields are written as references, never raw contents: a file
+      // field's env var must hold a PATH, and its plaintext must not be spilled
+      // into `.env`. `lockit run` resolves the reference and materializes at 0600.
+      entries.push({ key: name, value: b.type === "file" ? `lockit:${b.ref}` : b.value });
       continue;
     }
     const r = resolveVar(store, name);
