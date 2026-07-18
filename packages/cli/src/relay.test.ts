@@ -116,6 +116,16 @@ describe("cmdRelay", () => {
     expect(showIo.stdout).toContain("(config)");
   });
 
+  it("set creates LOCKIT_HOME when it does not exist yet (fresh machine)", async () => {
+    const freshHome = join(home, "fresh", ".lockit");
+    process.env.LOCKIT_HOME = freshHome;
+    const io = makeIo(["set", "https://relay.mycorp.example"], freshHome);
+    expect(await cmdRelay(io)).toBe(0);
+    expect(readFileSync(join(freshHome, "relay"), "utf8").trim()).toBe(
+      "https://relay.mycorp.example",
+    );
+  });
+
   it("set rejects an invalid URL and writes nothing", async () => {
     const io = makeIo(["set", "not a url"], home);
     expect(await cmdRelay(io)).toBe(1);

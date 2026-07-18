@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
-import { writeFile, rm } from "node:fs/promises";
+import { mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { lockitHome } from "@lockit/core";
 import type { Io } from "./commands.js";
@@ -86,6 +86,7 @@ export async function cmdRelay(io: Io): Promise<number> {
       io.err(`${e instanceof Error ? e.message : String(e)}\n`);
       return 1;
     }
+    await mkdir(lockitHome(), { recursive: true, mode: 0o700 });
     await writeFile(relayConfigPath(), `${url}\n`, { encoding: "utf8", mode: 0o644 });
     io.out(`relay set to ${url}\n`);
     return 0;

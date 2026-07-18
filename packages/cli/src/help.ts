@@ -60,10 +60,10 @@ COMMANDS (global store)
   identity [--out <file>]
         Create or show this device's public sharing identity. The file is public
         key material only; private sharing keys stay sealed in LOCKIT_HOME.
-  identity register <username> --relay <url>
+  identity register <username> [--relay <url>]
         Register this device's public identity under a globally unique username
         on a relay. First claim wins; the relay stores public keys only.
-  identity whois <username> --relay <url>
+  identity whois <username> [--relay <url>]
         Resolve a relay username to its public identity id, value-free.
   relay [set <url> | reset]
         Show the relay in use and where it came from; 'set' brings your own
