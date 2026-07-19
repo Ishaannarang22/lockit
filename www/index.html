@@ -88,20 +88,15 @@
             <span class="term__dots" aria-hidden="true"><i></i><i></i><i></i></span>
             <span class="term__title">agent — zsh</span>
           </div>
-          <pre class="term__body"><span class="ln"><span class="c-com"># the agent needs your Stripe key to run the app</span></span>
+          <pre class="term__body"><span class="ln"><span class="c-com"># an agent runs your app — with the real key, unseen</span></span>
 <span class="ln"><span class="c-p">$</span> <span class="c-cmd">lockit</span> run stripe/prod <span class="c-op">--</span> node server.js</span>
-<span class="ln"><span class="c-dim">→ injecting</span> <span class="c-key">STRIPE_KEY</span><span class="c-dim">, </span><span class="c-key">WEBHOOK_SECRET</span> <span class="c-dim">(masked in output)</span></span>
+<span class="ln"><span class="c-dim">→ injecting</span> <span class="c-key">STRIPE_KEY</span> <span class="c-dim">(masked in output)</span></span>
 <span class="ln">  server listening on :3000</span>
-<span class="ln">  charge ok · key=<span class="redact">••••••••••••</span> <span class="c-ok">✓ authorized</span></span>
+<span class="ln">  charge ok · key=<span class="redact">••••••••</span> <span class="c-ok">✓ authorized</span></span>
 <span class="ln term__blank"> </span>
-<span class="ln"><span class="c-com"># what the agent can actually see:</span></span>
-<span class="ln"><span class="c-p">$</span> <span class="c-cmd">lockit</span> ls <span class="c-op">--vars</span></span>
-<span class="ln">  <span class="c-key">STRIPE_KEY</span>      <span class="c-dim">[stripe/prod]</span>  <span class="c-tag">hasValue</span></span>
-<span class="ln">  <span class="c-key">WEBHOOK_SECRET</span>  <span class="c-dim">[stripe/prod]</span>  <span class="c-tag">hasValue</span></span>
-<span class="ln"><span class="c-dim">  names and structure only — never a value</span></span></pre>
+<span class="ln"><span class="c-com"># the value reached the process. never your screen.</span></span></pre>
         </div>
         </div>
-        <p class="hero__demo-cap">The child process gets the real value. Your terminal — and the agent — get <code>••••</code>.</p>
       </div>
     </section>
 
@@ -139,8 +134,7 @@
 <span class="ln"><span class="c-p">$</span> cat .env</span>
 <span class="ln"><span class="c-key">STRIPE_KEY</span>=<span class="leak">sk-live-9f2a4c7e1b83d05</span></span>
 <span class="ln"><span class="c-p">$</span> curl -H "Authorization: Bearer <span class="leak">sk-live-9f2a…</span>"</span>
-<span class="ln bad-note">↑ now permanently in the agent's context, your</span>
-<span class="ln bad-note">&nbsp;&nbsp;shell history, and every log that captured it</span></pre>
+<span class="ln bad-note">↑ now in its context, your history, and the logs — for good</span></pre>
             </div>
           </article>
 
@@ -154,8 +148,7 @@
 <span class="ln"><span class="c-p">$</span> <span class="c-cmd">lockit</span> run <span class="c-op">--</span> npm start</span>
 <span class="ln"><span class="c-dim">→ injecting</span> <span class="c-key">STRIPE_KEY</span> <span class="c-dim">into the child, masked</span></span>
 <span class="ln">  key is <span class="redact">•••</span>   <span class="c-ok">✓ the child saw it; nobody else did</span></span>
-<span class="ln good-note">↑ decrypted in memory, set in the child's env,</span>
-<span class="ln good-note">&nbsp;&nbsp;shredded on exit — nothing written to disk</span></pre>
+<span class="ln good-note">↑ decrypted in memory, masked, shredded on exit</span></pre>
             </div>
           </article>
         </div>
