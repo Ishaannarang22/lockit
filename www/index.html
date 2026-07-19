@@ -53,19 +53,13 @@
     <!-- HERO -->
     <section class="hero wrap">
       <div class="hero__copy reveal">
-        <p class="tagline">
-          <span class="tagline__tag">Open-source</span>
-          <span class="tagline__tag">Local-first</span>
-          <span class="tagline__tag">Apache-2.0</span>
-        </p>
         <h1 class="display">
           A local vault your&nbsp;agents<br class="hide-mobile" />
           can <em>use</em> but never <em>see</em>.
         </h1>
         <p class="lede">
-          <strong>lockit</strong> stores every API key once, encrypted on your machine, and
-          injects it straight into the commands that need it — so a secret never touches your
-          shell history, a committed <code>.env</code>, or an AI agent's transcript.
+          Encrypt every API key once, locally. lockit injects it into your
+          commands — never into shell history, a <code>.env</code>, or an agent's transcript.
         </p>
 
         <div class="install" data-copy-group>
@@ -114,12 +108,10 @@
     <section class="section agents" id="agents">
       <div class="wrap">
         <div class="section__head reveal">
-          <p class="eyebrow eyebrow--brass">The differentiator</p>
           <h2 class="display display--2">Agents request. Agents use.<br />Agents never see.</h2>
           <p class="section__sub">
-            An AI coding agent needs your keys to build and test — but the moment a value lands in
-            its context, it's in a transcript you can't un-write. lockit gives the agent a way to
-            <em>use</em> a secret without the value ever crossing into what it can read.
+            An agent needs your keys to run your code. lockit lets it <em>use</em> a secret
+            without the value ever entering what it can read.
           </p>
         </div>
 
@@ -157,17 +149,17 @@
           <div class="rule-card">
             <span class="rule-card__num">01</span>
             <h3>Value-free output</h3>
-            <p>Every agent-facing command shows slugs, field names and <code>hasValue</code> — the structure of your secrets, never the secrets.</p>
+            <p>Slugs, field names, <code>hasValue</code>. Never a value.</p>
           </div>
           <div class="rule-card">
             <span class="rule-card__num">02</span>
             <h3>Request, don't take</h3>
-            <p>An agent can <em>ask</em> to admit a key with <code>lockit admit</code>, but only a present human can approve it. It can never pull from the store itself.</p>
+            <p>An agent asks with <code>lockit admit</code>; only a human approves.</p>
           </div>
           <div class="rule-card">
             <span class="rule-card__num">03</span>
             <h3>Ships with a skill</h3>
-            <p><code>lockit install</code> writes an agent-safe skill to <code>~/.claude/skills</code>, so Claude drives lockit by name and knows the rules in every repo.</p>
+            <p><code>lockit install</code> teaches Claude the rules in every repo.</p>
           </div>
         </div>
       </div>
@@ -177,7 +169,6 @@
     <section class="section features" id="features">
       <div class="wrap">
         <div class="section__head reveal">
-          <p class="eyebrow eyebrow--brass">The vault</p>
           <h2 class="display display--2">One store. Every project. Zero copies.</h2>
         </div>
         <div class="grid reveal">
@@ -186,42 +177,42 @@
               <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="4.4" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="1.15" fill="currentColor"/><circle cx="15" cy="9" r="1.15" fill="currentColor"/><circle cx="12" cy="12" r="1.15" fill="currentColor"/><circle cx="9" cy="15" r="1.15" fill="currentColor"/><circle cx="15" cy="15" r="1.15" fill="currentColor"/></svg>
             </div>
             <h3>Encrypted at rest</h3>
-            <p>Client-side XChaCha20-Poly1305 with Argon2id key derivation, via libsodium. Store and key files are <code>0600</code>. No operator, no master key.</p>
+            <p>XChaCha20-Poly1305 + Argon2id, via libsodium. No master key.</p>
           </article>
           <article class="feat">
             <div class="feat__ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l3.2 4L4 16"/><path d="M9.5 8l3.2 4-3.2 4"/><path d="M15.5 5h4.5v14h-4.5"/></svg>
             </div>
             <h3>Inject, don't paste</h3>
-            <p><code>lockit run -- &lt;cmd&gt;</code> decrypts in memory, sets the child's env, and masks values in its output. Nothing hits your history or a committed file.</p>
+            <p><code>lockit run</code> decrypts in memory and masks output. Nothing hits disk.</p>
           </article>
           <article class="feat">
             <div class="feat__ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5.5 11a6.5 6.5 0 0 1 13 0v1.5"/><path d="M8.7 11a3.3 3.3 0 0 1 6.6 0v3a3 3 0 0 0 1 2.2"/><path d="M12 11v4.2"/><path d="M6.6 15.2c.5 2 .5 3.2.4 4.3"/><path d="M15.4 17.6c.2 .8 .2 1.4 .1 2"/></svg>
             </div>
             <h3>Per-project admission</h3>
-            <p>A project can only use keys you've <em>admitted</em> to it — gated by a macOS Touch ID dialog an agent can't satisfy. The binding map is value-free and committable.</p>
+            <p>A project uses only the keys you admit — gated by Touch ID.</p>
           </article>
           <article class="feat">
             <div class="feat__ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5.5" cy="12" r="2.3"/><circle cx="18" cy="6.5" r="2.3"/><circle cx="18" cy="17.5" r="2.3"/><path d="M7.6 11l8.3-3.8M7.6 13l8.3 3.8" stroke-linecap="round"/></svg>
             </div>
             <h3>Same name, per project</h3>
-            <p><code>DATABASE_URL</code> can hold a different value in every project. References, not copies — rotate once and every project follows.</p>
+            <p><code>DATABASE_URL</code> differs per project. References, not copies.</p>
           </article>
           <article class="feat">
             <div class="feat__ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="12" r="2.3"/><circle cx="19" cy="12" r="2.3"/><path d="M7.3 12h2.9M13.8 12h2.9" stroke-linecap="round"/><path d="M12 9.3l2.7 2.7-2.7 2.7-2.7-2.7z" stroke-linejoin="round"/></svg>
             </div>
             <h3>End-to-end sharing</h3>
-            <p>Send a secret to a teammate with X25519 / HPKE. An optional relay carries only ciphertext — no operator ever holds a key that opens it.</p>
+            <p>Send a key sealed with HPKE. The relay sees only ciphertext.</p>
           </article>
           <article class="feat">
             <div class="feat__ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M13 3.5 6 12.5h4.7L11 20.5l7-9h-4.7z"/></svg>
             </div>
             <h3>Zero setup</h3>
-            <p>No passphrase to export, no config to write. The store keys itself with a machine-local key kept in the keychain behind Touch ID.</p>
+            <p>No account, no passphrase. It keys itself behind Touch ID.</p>
           </article>
         </div>
       </div>
@@ -231,24 +222,23 @@
     <section class="section walk" id="walkthrough">
       <div class="wrap walk__grid">
         <div class="walk__copy reveal">
-          <p class="eyebrow eyebrow--brass">A day with lockit</p>
           <h2 class="display display--2">From scattered <code>.env</code> files to one clean run.</h2>
           <ol class="steps">
             <li data-step="1" class="is-active">
               <h3>Store it once</h3>
-              <p>The value comes from <code>stdin</code> only — never argv — so it stays out of <code>ps</code> and your shell history.</p>
+              <p>Value via <code>stdin</code> only — never argv, never history.</p>
             </li>
             <li data-step="2">
               <h3>See it, value-free</h3>
-              <p><code>lockit ls --vars</code> lists what exists: names, schemas, <code>hasValue</code>. Safe to run in front of anyone — or any agent.</p>
+              <p><code>lockit ls --vars</code> shows names, not values.</p>
             </li>
             <li data-step="3">
               <h3>Admit into a project</h3>
-              <p><code>lockit init</code>, then admit exactly the keys this repo should use. One Touch ID prompt, then it's bound.</p>
+              <p>Admit the keys this repo needs. One Touch ID prompt.</p>
             </li>
             <li data-step="4">
               <h3>Run with it injected</h3>
-              <p><code>lockit run -- npm start</code> puts the real values in the child's environment, masks them in output, and shreds on exit.</p>
+              <p><code>lockit run -- npm start</code> — injected, masked, shredded on exit.</p>
             </li>
           </ol>
         </div>
@@ -291,17 +281,15 @@
           </div>
         </div>
         <div class="sharing__copy reveal" data-reveal-delay="1">
-          <p class="eyebrow eyebrow--brass">Teams</p>
           <h2 class="display display--2">Share a secret without trusting a server with it.</h2>
           <p class="section__sub">
-            Sharing is sealed to your teammate's public key with X25519 / HPKE before it ever
-            leaves your machine. The relay — the public one, or one you host — only ever
-            carries ciphertext. There is no operator master key, because there's nothing to hold.
+            Sealed to your teammate's key with HPKE before it leaves your machine.
+            The relay only ever carries ciphertext.
           </p>
           <ul class="ticks">
-            <li>Client-side encryption; the relay is a dumb pipe for sealed bytes.</li>
-            <li>Confirm a teammate's identity out-of-band with <code>lockit identity whois</code>.</li>
-            <li>Bring your own relay: <code>lockit relay set https://relay.mycorp.example</code>.</li>
+            <li>Client-side encryption; the relay is a dumb pipe.</li>
+            <li>Verify identities with <code>lockit identity whois</code>.</li>
+            <li>Or host your own relay.</li>
           </ul>
         </div>
       </div>
@@ -310,13 +298,12 @@
     <!-- HONEST STRIP -->
     <section class="section honest">
       <div class="wrap honest__inner reveal">
-        <p class="eyebrow eyebrow--brass">Honest by design</p>
         <h2 class="display display--2">Limits documented, never hidden.</h2>
         <p class="honest__body">
-          lockit is early (<code>0.x</code>) and says so. A child process holds the real value while
-          it uses it, so containment isn't omnipotence. Node can't guarantee wiped memory. And with
-          zero-knowledge encryption, a passphrase you set and lose is unrecoverable. The threat model
-          spells all of this out — <a href="https://github.com/Ishaannarang22/lockit/blob/main/docs/threat-model.md" target="_blank" rel="noopener">read it before you trust it</a>.
+          lockit is early (<code>0.x</code>). A child process still holds the value while it
+          uses it, and a passphrase you lose is unrecoverable. The
+          <a href="https://github.com/Ishaannarang22/lockit/blob/main/docs/threat-model.md" target="_blank" rel="noopener">threat model</a>
+          spells it out — read it before you trust it.
         </p>
       </div>
     </section>
