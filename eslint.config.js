@@ -12,5 +12,7 @@ export default tseslint.config(
       ],
     },
   },
-  { ignores: ["**/dist/**", "**/node_modules/**"] },
+  // The marketing site under www/ is a dependency-free, browser-targeted static
+  // site (plain IIFE JS), intentionally outside the TypeScript/package toolchain.
+  { ignores: ["**/dist/**", "**/node_modules/**", "www/**"] },
 );
