@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>lockit — a local vault your agents can use but never see</title>
+  <meta name="description" content="lockit is an open-source, local-first secrets manager. Store every API key once in an encrypted vault, inject it into commands without it ever touching shell history or .env files, and let AI agents use secrets they can never see." />
+  <meta name="theme-color" content="#f5f1e8" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="lockit — a local vault your agents can use but never see" />
+  <meta property="og:description" content="Open-source, local-first secrets manager. Encrypt every key once; agents use them, never see them." />
+  <meta property="og:url" content="https://lockit.ishaannarang.xyz" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2317150f'/%3E%3Crect x='6.5' y='6.5' width='19' height='19' rx='5' fill='none' stroke='%23c98a2b' stroke-width='2.2'/%3E%3Crect x='12' y='12' width='8' height='8' rx='2.2' fill='%23c98a2b'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- NAV -->
+  <header class="nav" id="top">
+    <div class="wrap nav__inner">
+      <a class="brand" href="#top" aria-label="lockit home">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none">
+            <rect x="3.4" y="3.4" width="17.2" height="17.2" rx="4.6" stroke="currentColor" stroke-width="1.7"/>
+            <rect x="8" y="8" width="8" height="8" rx="2.2" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="brand__word">lockit</span>
+      </a>
+      <nav class="nav__links" aria-label="Primary">
+        <a href="#agents">Agent-safe</a>
+        <a href="#features">Features</a>
+        <a href="#walkthrough">Walkthrough</a>
+        <a href="#sharing">Sharing</a>
+      </nav>
+      <div class="nav__cta">
+        <a class="link-muted" href="https://www.npmjs.com/package/@lockit/cli" target="_blank" rel="noopener">npm</a>
+        <a class="btn btn--dark" href="https://github.com/Ishaannarang22/lockit" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero wrap">
+      <div class="hero__copy reveal">
+        <p class="tagline">
+          <span class="tagline__tag">Open-source</span>
+          <span class="tagline__tag">Local-first</span>
+          <span class="tagline__tag">Apache-2.0</span>
+        </p>
+        <h1 class="display">
+          A local vault your&nbsp;agents<br class="hide-mobile" />
+          can <em>use</em> but never <em>see</em>.
+        </h1>
+        <p class="lede">
+          <strong>lockit</strong> stores every API key once, encrypted on your machine, and
+          injects it straight into the commands that need it — so a secret never touches your
+          shell history, a committed <code>.env</code>, or an AI agent's transcript.
+        </p>
+
+        <div class="install" data-copy-group>
+          <div class="install__cmd">
+            <span class="install__prompt" aria-hidden="true">$</span>
+            <code id="install-cmd">npm i -g @lockit/cli</code>
+          </div>
+          <button class="install__copy" data-copy="npm i -g @lockit/cli" aria-label="Copy install command">
+            <span class="install__copy-label">Copy</span>
+          </button>
+        </div>
+        <p class="install__sub">No account. No server. The first command creates your encrypted store at <code>~/.lockit</code>.</p>
+      </div>
+
+      <!-- HERO TERMINAL -->
+      <div class="hero__demo reveal" data-reveal-delay="1">
+        <div class="termwrap termwrap--brass">
+        <div class="term term--hero" aria-label="Terminal demonstration">
+          <div class="term__bar">
+            <span class="term__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="term__title">agent — zsh</span>
+          </div>
+          <pre class="term__body"><span class="ln"><span class="c-com"># the agent needs your Stripe key to run the app</span></span>
+<span class="ln"><span class="c-p">$</span> <span class="c-cmd">lockit</span> run stripe/prod <span class="c-op">--</span> node server.js</span>
+<span class="ln"><span class="c-dim">→ injecting</span> <span class="c-key">STRIPE_KEY</span><span class="c-dim">, </span><span class="c-key">WEBHOOK_SECRET</span> <span class="c-dim">(masked in output)</span></span>
+<span class="ln">  server listening on :3000</span>
+<span class="ln">  charge ok · key=<span class="redact">••••••••••••</span> <span class="c-ok">✓ authorized</span></span>
+<span class="ln term__blank"> </span>
+<span class="ln"><span class="c-com"># what the agent can actually see:</span></span>
+<span class="ln"><span class="c-p">$</span> <span class="c-cmd">lockit</span> ls <span class="c-op">--vars</span></span>
+<span class="ln">  <span class="c-key">STRIPE_KEY</span>      <span class="c-dim">[stripe/prod]</span>  <span class="c-tag">hasValue</span></span>
+<span class="ln">  <span class="c-key">WEBHOOK_SECRET</span>  <span class="c-dim">[stripe/prod]</span>  <span class="c-tag">hasValue</span></span>
+<span class="ln"><span class="c-dim">  names and structure only — never a value</span></span></pre>
+        </div>
+        </div>
+        <p class="hero__demo-cap">The child process gets the real value. Your terminal — and the agent — get <code>••••</code>.</p>
+      </div>
+    </section>
+
+    <!-- TRUST STRIP -->
+    <section class="strip" aria-label="At a glance">
+      <div class="wrap strip__inner">
+        <div class="strip__item"><span class="strip__k">XChaCha20-Poly1305</span><span class="strip__v">authenticated encryption</span></div>
+        <div class="strip__item"><span class="strip__k">Argon2id</span><span class="strip__v">memory-hard key derivation</span></div>
+        <div class="strip__item"><span class="strip__k">Touch ID</span><span class="strip__v">human-gated admission</span></div>
+        <div class="strip__item"><span class="strip__k">X25519 · HPKE</span><span class="strip__v">end-to-end sharing</span></div>
+      </div>
+    </section>
+
+    <!-- AGENT SAFETY / DIFFERENTIATOR -->
+    <section class="section agents" id="agents">
+      <div class="wrap">
+        <div class="section__head reveal">
+          <p class="eyebrow eyebrow--brass">The differentiator</p>
+          <h2 class="display display--2">Agents request. Agents use.<br />Agents never see.</h2>
+          <p class="section__sub">
+            An AI coding agent needs your keys to build and test — but the moment a value lands in
+            its context, it's in a transcript you can't un-write. lockit gives the agent a way to
+            <em>use</em> a secret without the value ever crossing into what it can read.
+          </p>
+        </div>
+
+        <div class="compare reveal">
+          <article class="compare__card compare__card--bad">
+            <header class="compare__top">
+              <span class="compare__badge compare__badge--bad">Without lockit</span>
+              <span class="compare__verdict">value leaks into the transcript</span>
+            </header>
+            <div class="term term--flat">
+              <pre class="term__body"><span class="ln"><span class="c-p">agent&gt;</span> reading .env to get the key…</span>
+<span class="ln"><span class="c-p">$</span> cat .env</span>
+<span class="ln"><span class="c-key">STRIPE_KEY</span>=<span class="leak">sk-live-9f2a4c7e1b83d05</span></span>
+<span class="ln"><span class="c-p">$</span> curl -H "Authorization: Bearer <span class="leak">sk-live-9f2a…</span>"</span>
+<span class="ln bad-note">↑ now permanently in the agent's context, your</span>
+<span class="ln bad-note">&nbsp;&nbsp;shell history, and every log that captured it</span></pre>
+            </div>
+          </article>
+
+          <article class="compare__card compare__card--good">
+            <header class="compare__top">
+              <span class="compare__badge compare__badge--good">With lockit</span>
+              <span class="compare__verdict">value never enters the context</span>
+            </header>
+            <div class="term term--flat">
+              <pre class="term__body"><span class="ln"><span class="c-p">agent&gt;</span> I'll run it with the admitted keys.</span>
+<span class="ln"><span class="c-p">$</span> <span class="c-cmd">lockit</span> run <span class="c-op">--</span> npm start</span>
+<span class="ln"><span class="c-dim">→ injecting</span> <span class="c-key">STRIPE_KEY</span> <span class="c-dim">into the child, masked</span></span>
+<span class="ln">  key is <span class="redact">•••</span>   <span class="c-ok">✓ the child saw it; nobody else did</span></span>
+<span class="ln good-note">↑ decrypted in memory, set in the child's env,</span>
+<span class="ln good-note">&nbsp;&nbsp;shredded on exit — nothing written to disk</span></pre>
+            </div>
+          </article>
+        </div>
+
+        <div class="agents__rules reveal">
+          <div class="rule-card">
+            <span class="rule-card__num">01</span>
+            <h3>Value-free output</h3>
+            <p>Every agent-facing command shows slugs, field names and <code>hasValue</code> — the structure of your secrets, never the secrets.</p>
+          </div>
+          <div class="rule-card">
+            <span class="rule-card__num">02</span>
+            <h3>Request, don't take</h3>
+            <p>An agent can <em>ask</em> to admit a key with <code>lockit admit</code>, but only a present human can approve it. It can never pull from the store itself.</p>
+          </div>
+          <div class="rule-card">
+            <span class="rule-card__num">03</span>
+            <h3>Ships with a skill</h3>
+            <p><code>lockit install</code> writes an agent-safe skill to <code>~/.claude/skills</code>, so Claude drives lockit by name and knows the rules in every repo.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES GRID -->
+    <section class="section features" id="features">
+      <div class="wrap">
+        <div class="section__head reveal">
+          <p class="eyebrow eyebrow--brass">The vault</p>
+          <h2 class="display display--2">One store. Every project. Zero copies.</h2>
+        </div>
+        <div class="grid reveal">
+          <article class="feat">
+            <div class="feat__ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="4.4" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="1.15" fill="currentColor"/><circle cx="15" cy="9" r="1.15" fill="currentColor"/><circle cx="12" cy="12" r="1.15" fill="currentColor"/><circle cx="9" cy="15" r="1.15" fill="currentColor"/><circle cx="15" cy="15" r="1.15" fill="currentColor"/></svg>
+            </div>
+            <h3>Encrypted at rest</h3>
+            <p>Client-side XChaCha20-Poly1305 with Argon2id key derivation, via libsodium. Store and key files are <code>0600</code>. No operator, no master key.</p>
+          </article>
+          <article class="feat">
+            <div class="feat__ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l3.2 4L4 16"/><path d="M9.5 8l3.2 4-3.2 4"/><path d="M15.5 5h4.5v14h-4.5"/></svg>
+            </div>
+            <h3>Inject, don't paste</h3>
+            <p><code>lockit run -- &lt;cmd&gt;</code> decrypts in memory, sets the child's env, and masks values in its output. Nothing hits your history or a committed file.</p>
+          </article>
+          <article class="feat">
+            <div class="feat__ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5.5 11a6.5 6.5 0 0 1 13 0v1.5"/><path d="M8.7 11a3.3 3.3 0 0 1 6.6 0v3a3 3 0 0 0 1 2.2"/><path d="M12 11v4.2"/><path d="M6.6 15.2c.5 2 .5 3.2.4 4.3"/><path d="M15.4 17.6c.2 .8 .2 1.4 .1 2"/></svg>
+            </div>
+            <h3>Per-project admission</h3>
+            <p>A project can only use keys you've <em>admitted</em> to it — gated by a macOS Touch ID dialog an agent can't satisfy. The binding map is value-free and committable.</p>
+          </article>
+          <article class="feat">
+            <div class="feat__ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5.5" cy="12" r="2.3"/><circle cx="18" cy="6.5" r="2.3"/><circle cx="18" cy="17.5" r="2.3"/><path d="M7.6 11l8.3-3.8M7.6 13l8.3 3.8" stroke-linecap="round"/></svg>
+            </div>
+            <h3>Same name, per project</h3>
+            <p><code>DATABASE_URL</code> can hold a different value in every project. References, not copies — rotate once and every project follows.</p>
+          </article>
+          <article class="feat">
+            <div class="feat__ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="12" r="2.3"/><circle cx="19" cy="12" r="2.3"/><path d="M7.3 12h2.9M13.8 12h2.9" stroke-linecap="round"/><path d="M12 9.3l2.7 2.7-2.7 2.7-2.7-2.7z" stroke-linejoin="round"/></svg>
+            </div>
+            <h3>End-to-end sharing</h3>
+            <p>Send a secret to a teammate with X25519 / HPKE. An optional relay carries only ciphertext — no operator ever holds a key that opens it.</p>
+          </article>
+          <article class="feat">
+            <div class="feat__ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M13 3.5 6 12.5h4.7L11 20.5l7-9h-4.7z"/></svg>
+            </div>
+            <h3>Zero setup</h3>
+            <p>No passphrase to export, no config to write. The store keys itself with a machine-local key kept in the keychain behind Touch ID.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- WALKTHROUGH -->
+    <section class="section walk" id="walkthrough">
+      <div class="wrap walk__grid">
+        <div class="walk__copy reveal">
+          <p class="eyebrow eyebrow--brass">A day with lockit</p>
+          <h2 class="display display--2">From scattered <code>.env</code> files to one clean run.</h2>
+          <ol class="steps">
+            <li data-step="1" class="is-active">
+              <h3>Store it once</h3>
+              <p>The value comes from <code>stdin</code> only — never argv — so it stays out of <code>ps</code> and your shell history.</p>
+            </li>
+            <li data-step="2">
+              <h3>See it, value-free</h3>
+              <p><code>lockit ls --vars</code> lists what exists: names, schemas, <code>hasValue</code>. Safe to run in front of anyone — or any agent.</p>
+            </li>
+            <li data-step="3">
+              <h3>Admit into a project</h3>
+              <p><code>lockit init</code>, then admit exactly the keys this repo should use. One Touch ID prompt, then it's bound.</p>
+            </li>
+            <li data-step="4">
+              <h3>Run with it injected</h3>
+              <p><code>lockit run -- npm start</code> puts the real values in the child's environment, masks them in output, and shreds on exit.</p>
+            </li>
+          </ol>
+        </div>
+        <div class="walk__term reveal" data-reveal-delay="1">
+          <div class="termwrap termwrap--slate">
+          <div class="term term--tall">
+            <div class="term__bar">
+              <span class="term__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="term__title">~/code/app — zsh</span>
+            </div>
+            <pre class="term__body" id="typed-term" aria-live="polite"></pre>
+          </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SHARING / TEAMS -->
+    <section class="section sharing" id="sharing">
+      <div class="wrap sharing__grid">
+        <div class="sharing__demo reveal">
+          <div class="termwrap termwrap--sage">
+          <div class="term term--flat">
+            <div class="term__bar">
+              <span class="term__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="term__title">sharing — end to end</span>
+            </div>
+            <pre class="term__body"><span class="ln"><span class="c-com"># bob, once, on his machine</span></span>
+<span class="ln"><span class="c-p">$</span> <span class="c-cmd">lockit</span> identity register bob</span>
+<span class="ln"><span class="c-dim">  published public key · id</span> <span class="c-key">b7f3…a19c</span></span>
+<span class="ln term__blank"> </span>
+<span class="ln"><span class="c-com"># you, sending a key straight to bob</span></span>
+<span class="ln"><span class="c-p">$</span> <span class="c-cmd">lockit</span> share openai/dev <span class="c-op">--to</span> <span class="c-key">@bob</span></span>
+<span class="ln"><span class="c-dim">  sealed with HPKE → relay holds only ciphertext</span></span>
+<span class="ln term__blank"> </span>
+<span class="ln"><span class="c-com"># bob, receiving</span></span>
+<span class="ln"><span class="c-p">$</span> <span class="c-cmd">lockit</span> receive</span>
+<span class="ln">  openai/dev <span class="c-dim">from</span> <span class="c-key">@you</span>  <span class="c-ok">✓ decrypted locally</span></span></pre>
+          </div>
+          </div>
+        </div>
+        <div class="sharing__copy reveal" data-reveal-delay="1">
+          <p class="eyebrow eyebrow--brass">Teams</p>
+          <h2 class="display display--2">Share a secret without trusting a server with it.</h2>
+          <p class="section__sub">
+            Sharing is sealed to your teammate's public key with X25519 / HPKE before it ever
+            leaves your machine. The relay — the public one, or one you host — only ever
+            carries ciphertext. There is no operator master key, because there's nothing to hold.
+          </p>
+          <ul class="ticks">
+            <li>Client-side encryption; the relay is a dumb pipe for sealed bytes.</li>
+            <li>Confirm a teammate's identity out-of-band with <code>lockit identity whois</code>.</li>
+            <li>Bring your own relay: <code>lockit relay set https://relay.mycorp.example</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- HONEST STRIP -->
+    <section class="section honest">
+      <div class="wrap honest__inner reveal">
+        <p class="eyebrow eyebrow--brass">Honest by design</p>
+        <h2 class="display display--2">Limits documented, never hidden.</h2>
+        <p class="honest__body">
+          lockit is early (<code>0.x</code>) and says so. A child process holds the real value while
+          it uses it, so containment isn't omnipotence. Node can't guarantee wiped memory. And with
+          zero-knowledge encryption, a passphrase you set and lose is unrecoverable. The threat model
+          spells all of this out — <a href="https://github.com/Ishaannarang22/lockit/blob/main/docs/threat-model.md" target="_blank" rel="noopener">read it before you trust it</a>.
+        </p>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section cta">
+      <div class="wrap cta__inner reveal">
+        <h2 class="display cta__title">Stop pasting keys.<br />Start locking them.</h2>
+        <div class="install install--center" data-copy-group>
+          <div class="install__cmd">
+            <span class="install__prompt" aria-hidden="true">$</span>
+            <code>npm i -g @lockit/cli</code>
+          </div>
+          <button class="install__copy" data-copy="npm i -g @lockit/cli" aria-label="Copy install command">
+            <span class="install__copy-label">Copy</span>
+          </button>
+        </div>
+        <div class="cta__links">
+          <a class="btn btn--dark" href="https://github.com/Ishaannarang22/lockit" target="_blank" rel="noopener">View source on GitHub</a>
+          <a class="btn btn--ghost" href="https://www.npmjs.com/package/@lockit/cli" target="_blank" rel="noopener">@lockit/cli on npm</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <div class="footer__brand">
+        <span class="brand__word brand__word--footer">lockit</span>
+        <p>A local-first, AI-agent-safe secrets manager. Built in the open.</p>
+      </div>
+      <nav class="footer__cols" aria-label="Footer">
+        <div class="footer__col">
+          <span class="footer__h">Project</span>
+          <a href="https://github.com/Ishaannarang22/lockit" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://www.npmjs.com/package/@lockit/cli" target="_blank" rel="noopener">npm</a>
+          <a href="https://github.com/Ishaannarang22/lockit/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0</a>
+        </div>
+        <div class="footer__col">
+          <span class="footer__h">Docs</span>
+          <a href="https://github.com/Ishaannarang22/lockit/blob/main/packages/cli/README.md" target="_blank" rel="noopener">CLI reference</a>
+          <a href="https://github.com/Ishaannarang22/lockit/blob/main/docs/threat-model.md" target="_blank" rel="noopener">Threat model</a>
+          <a href="https://github.com/Ishaannarang22/lockit/blob/main/docs/security-crypto.md" target="_blank" rel="noopener">Security &amp; crypto</a>
+        </div>
+        <div class="footer__col">
+          <span class="footer__h">On this page</span>
+          <a href="#agents">Agent-safe</a>
+          <a href="#features">Features</a>
+          <a href="#sharing">Sharing</a>
+        </div>
+      </nav>
+    </div>
+    <div class="wrap footer__base">
+      <span>© 2026 lockit · Apache-2.0</span>
+      <span class="footer__note">Encrypt once. Use anywhere. See never.</span>
+    </div>
+  </footer>
+
+  <script src="./main.js"></script>
+</body>
+</html>
